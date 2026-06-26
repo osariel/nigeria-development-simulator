@@ -1,0 +1,6 @@
+state,year,total_budget_ngn,capital_budget_ngn,recurrent_budget_ngn,personnel_cost_ngn,overhead_cost_ngn,debt_service_ngn,source_id,data_status,notes
+Edo,2025,,,,,,,SRC_EDO_2025_APPROVED,Missing/partial,Real source identified; figures to be entered from approved budget document
+Lagos,2025,3370000000000.0,,,,,,SRC_LAGOS_2025_APPROVED,partial_verified_total,2025 total approved budget entered; detailed breakdown pending verification.
+Niger,2025,1560000000000.0,,,,,,SRC_NIGER_2025_APPROVED,partial_verified_total,2025 total approved budget entered; detailed breakdown pending verification.
+Ogun,2025,1050000000000.0,,,,,,SRC_OGUN_2025_APPROVED,partial_verified_total,2025 total approved budget entered; detailed breakdown pending verification.
+Rivers,2025,1485000000000.0,,,,,,SRC_RIVERS_2025_APPROVED,partial_verified_total,2025 total approved budget entered; detailed breakdown pending verification.

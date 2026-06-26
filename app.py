@@ -1,1179 +1,1281 @@
-import streamlit as st
-import pandas as pd
 from pathlib import Path
 
+import pandas as pd
+import streamlit as st
 
-BASE_DIR = Path(__file__).resolve().parent
+
+BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
+
+BUDGET_COLUMNS = [
+    "state",
+    "year",
+    "total_budget_ngn",
+    "capital_budget_ngn",
+    "recurrent_budget_ngn",
+    "personnel_cost_ngn",
+    "overhead_cost_ngn",
+    "debt_service_ngn",
+    "source_id",
+    "data_status",
+    "notes",
+]
+
+BUDGET_BASE_COLUMNS = [
+    "state",
+    "year",
+    "total_budget_ngn",
+]
+
+BUDGET_OPTIONAL_COLUMNS = [
+    "capital_budget_ngn",
+    "recurrent_budget_ngn",
+    "personnel_cost_ngn",
+    "overhead_cost_ngn",
+    "debt_service_ngn",
+]
+
+POPULATION_COLUMNS = [
+    "state",
+    "year",
+    "population",
+    "source_name",
+    "source_url",
+    "notes",
+]
+
+LEGACY_STATE_COLUMNS = [
+    "state",
+    "population",
+    "annual_budget_ngn",
+    "capital_budget_ngn",
+    "recurrent_budget_ngn",
+]
+
+PROJECT_COST_COLUMNS = [
+    "category",
+    "item",
+    "unit",
+    "cost_ngn",
+    "source_name",
+    "source_url",
+    "notes",
+]
+
+LEGACY_PROJECT_COST_COLUMNS = [
+    "sector",
+    "item",
+    "unit_cost_ngn",
+    "unit_name",
+]
+
+DEFAULT_PROJECT_COSTS = pd.DataFrame(
+    [
+        {
+            "category": "Education",
+            "item": "Primary school block",
+            "unit": "school blocks",
+            "cost_ngn": 120_000_000,
+            "source_name": "Built-in fallback",
+            "source_url": "",
+            "notes": "Illustrative fallback assumption used only if project_costs.csv is missing or incomplete.",
+        },
+        {
+            "category": "Healthcare",
+            "item": "Primary health centre",
+            "unit": "health centres",
+            "cost_ngn": 250_000_000,
+            "source_name": "Built-in fallback",
+            "source_url": "",
+            "notes": "Illustrative fallback assumption used only if project_costs.csv is missing or incomplete.",
+        },
+        {
+            "category": "Water",
+            "item": "Borehole water project",
+            "unit": "boreholes",
+            "cost_ngn": 15_000_000,
+            "source_name": "Built-in fallback",
+            "source_url": "",
+            "notes": "Illustrative fallback assumption used only if project_costs.csv is missing or incomplete.",
+        },
+        {
+            "category": "Roads",
+            "item": "1 km rural road",
+            "unit": "km of road",
+            "cost_ngn": 500_000_000,
+            "source_name": "Built-in fallback",
+            "source_url": "",
+            "notes": "Illustrative fallback assumption used only if project_costs.csv is missing or incomplete.",
+        },
+    ]
+)
+
 
 st.set_page_config(
     page_title="Nigeria Development Simulator",
-    page_icon="🇳🇬",
-    layout="wide"
+    page_icon="NG",
+    layout="centered",
 )
+
+
 st.markdown(
     """
     <style>
-    /* Main background */
     .stApp {
-        background-color: #f7f9fb;
+        background: #f8fafc;
         color: #0f172a;
     }
 
-    /* Main content area */
     .block-container {
-        padding-top: 2rem;
-        padding-bottom: 3rem;
-        max-width: 1200px;
-        color: #0f172a;
+        max-width: 760px;
+        padding-top: 1.4rem;
+        padding-bottom: 2.5rem;
     }
 
-    /* Keep ordinary markdown readable without overriding widget internals */
-    .block-container p {
-        color: #0f172a;
-    }
-
-    /* Sidebar */
     section[data-testid="stSidebar"] {
         background-color: #0f172a;
     }
 
     section[data-testid="stSidebar"] h1,
     section[data-testid="stSidebar"] h2,
-    section[data-testid="stSidebar"] h3,
-    section[data-testid="stSidebar"] p {
+    section[data-testid="stSidebar"] h3 {
         color: #ffffff;
     }
 
-    /* Overview hero */
-    .hero {
-        background-color: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 16px;
-        padding: 2rem;
-        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+    section[data-testid="stSidebar"] .stMarkdown p,
+    section[data-testid="stSidebar"] [role="radiogroup"] label p {
+        color: #ffffff !important;
     }
 
-    .hero p {
-        font-size: 1.1rem;
-        line-height: 1.6;
-        margin-bottom: 0.75rem;
-        color: #334155;
-    }
-
-    .hero-small {
-        font-size: 0.95rem;
-        color: #475569;
-    }
-
-    .overview-card {
-        background-color: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 14px;
-        padding: 1.2rem;
-        min-height: 155px;
-        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
-    }
-
-    .overview-card h3 {
-        font-size: 1.05rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .overview-card p {
-        color: #475569;
-        line-height: 1.55;
-        margin-bottom: 0;
-    }
-
-    .overview-cta {
-        background-color: #ecfdf5;
-        border: 1px solid #99f6e4;
-        border-radius: 14px;
-        padding: 1.2rem 1.4rem;
-    }
-
-    .overview-cta p {
-        color: #134e4a;
-        margin-bottom: 0;
-    }
-
-    .state-insight {
-        background-color: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 14px;
-        padding: 1.2rem 1.4rem;
-        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
-    }
-
-    .state-insight p {
-        color: #334155;
-        line-height: 1.6;
-        margin-bottom: 0.7rem;
-    }
-
-    .state-insight p:last-child {
-        margin-bottom: 0;
-    }
-
-    .ranking-insight {
-        background-color: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 14px;
-        padding: 1.2rem 1.4rem;
-        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
-    }
-
-    .ranking-insight p {
-        color: #334155;
-        line-height: 1.6;
-        margin-bottom: 0;
-    }
-
-    .simulation-insight {
-        background-color: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 14px;
-        padding: 1.2rem 1.4rem;
-        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
-    }
-
-    .simulation-insight p {
-        color: #334155;
-        line-height: 1.6;
-        margin-bottom: 0;
-    }
-
-    .budget-insight {
-        background-color: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 14px;
-        padding: 1.2rem 1.4rem;
-        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
-    }
-
-    .budget-insight p {
-        color: #334155;
-        line-height: 1.6;
-        margin-bottom: 0;
-    }
-
-    /* Page titles */
     h1 {
-        font-size: 2.4rem;
-        font-weight: 800;
+        font-size: 2rem;
+        line-height: 1.15;
+        letter-spacing: 0;
         color: #0f172a;
-        letter-spacing: -0.03em;
     }
 
     h2, h3 {
         color: #111827;
-        font-weight: 700;
+        letter-spacing: 0;
     }
 
-    /* Metric cards */
-    div[data-testid="stMetric"] {
-        background-color: #ffffff;
-        padding: 1.2rem;
+    .hero {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
         border-radius: 16px;
-        border: 1px solid #e5e7eb;
-        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+        padding: 1.4rem;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
     }
 
-    div[data-testid="stMetric"] label,
-    div[data-testid="stMetric"] div {
+    .hero h1 {
+        margin-bottom: 0.65rem;
+    }
+
+    .hero p,
+    .plain-card p,
+    .note-card p {
+        color: #334155;
+        line-height: 1.6;
+        margin-bottom: 0;
+    }
+
+    .metric-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+    }
+
+    .metric-label {
+        color: #64748b;
+        font-size: 0.86rem;
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+    }
+
+    .metric-value {
         color: #0f172a;
+        font-size: 1.28rem;
+        font-weight: 800;
+        line-height: 1.25;
     }
 
-    /* Info boxes */
-    div[data-testid="stAlert"] {
+    .metric-help {
+        color: #475569;
+        font-size: 0.9rem;
+        line-height: 1.45;
+        margin-top: 0.4rem;
+    }
+
+    .plain-card,
+    .note-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
         border-radius: 14px;
+        padding: 1rem;
+        margin-bottom: 0.8rem;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
     }
 
-    /* Dataframes */
-    div[data-testid="stDataFrame"] {
-        border-radius: 14px;
-        overflow: hidden;
+    .note-card {
+        background: #ecfdf5;
+        border-color: #99f6e4;
     }
 
-    /* Buttons */
+    .note-card p {
+        color: #064e3b;
+    }
+
+    .small-muted {
+        color: #64748b;
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    /* Main app widgets: keep labels readable on light backgrounds. */
+    section[data-testid="stMain"] [data-testid="stWidgetLabel"] p,
+    section[data-testid="stMain"] [data-testid="stRadio"] label p,
+    section[data-testid="stMain"] [data-testid="stRadio"] label span,
+    section[data-testid="stMain"] [data-testid="stSelectbox"] label p,
+    section[data-testid="stMain"] [data-testid="stNumberInput"] label p,
+    section[data-testid="stMain"] [data-testid="stSlider"] label p,
+    section[data-testid="stMain"] [data-testid="stExpander"] summary p {
+        color: #0f172a !important;
+    }
+
+    section[data-testid="stMain"] [role="radiogroup"] label,
+    section[data-testid="stMain"] [role="radiogroup"] label p,
+    section[data-testid="stMain"] [role="radiogroup"] label span,
+    section[data-testid="stMain"] [data-baseweb="radio"] div {
+        color: #0f172a !important;
+    }
+
+    section[data-testid="stMain"] [data-baseweb="select"] div,
+    section[data-testid="stMain"] [data-baseweb="select"] span,
+    section[data-testid="stMain"] input {
+        color: #0f172a !important;
+        background-color: #ffffff;
+    }
+
     .stButton button {
-        border-radius: 10px;
-        background-color: #0f766e;
-        color: white;
-        border: none;
+        background-color: #ffffff;
+        color: #0f172a;
+        border: 1px solid #cbd5e1;
     }
 
-    /* Hide Streamlit branding bits */
-    #MainMenu {
-        visibility: hidden;
+    .stButton button p,
+    .stButton button span {
+        color: #0f172a !important;
     }
 
-    footer {
-        visibility: hidden;
+    div[data-testid="stAlert"] {
+        border-radius: 12px;
+        background-color: #fffbeb;
+        border: 1px solid #f59e0b;
+        color: #422006;
     }
 
+    div[data-testid="stAlert"] p,
+    div[data-testid="stAlert"] li,
+    div[data-testid="stAlert"] span {
+        color: #422006 !important;
+    }
     </style>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
-# -----------------------------
-# Load data
-# -----------------------------
-states = pd.read_csv(DATA_DIR / "states.csv")
-project_costs = pd.read_csv(DATA_DIR / "project_costs.csv")
 
-REQUIRED_STATE_COLUMNS = [
-    "state",
-    "population",
-    "annual_budget_ngn",
-    "capital_budget_ngn",
-    "recurrent_budget_ngn"
-]
+def format_naira(value):
+    if pd.isna(value):
+        return "Not available"
+    return f"₦{value:,.0f}"
 
-REQUIRED_PROJECT_COST_COLUMNS = [
-    "sector",
-    "item",
-    "unit_cost_ngn",
-    "unit_name"
-]
+
+def format_number(value):
+    if pd.isna(value):
+        return "Not available"
+    return f"{value:,.0f}"
+
+
+def format_percent(value):
+    if pd.isna(value):
+        return "Not available"
+    return f"{value:.1f}%"
+
+
+def has_value(value):
+    return not pd.isna(value)
+
+
+def safe_divide(numerator, denominator):
+    if pd.isna(numerator) or pd.isna(denominator) or denominator <= 0:
+        return pd.NA
+    return numerator / denominator
+
+
+def metric_card(label, value, help_text=None):
+    help_markup = f'<div class="metric-help">{help_text}</div>' if help_text else ""
+    st.markdown(
+        f"""
+        <div class="metric-card">
+            <div class="metric-label">{label}</div>
+            <div class="metric-value">{value}</div>
+            {help_markup}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def note_card(text):
+    st.markdown(
+        f"""
+        <div class="note-card">
+            <p>{text}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def data_status_label(status):
+    normalized = str(status).strip().lower()
+    if normalized == "verified":
+        return "Verified source"
+    if normalized == "partial_verified_total":
+        return "Partial verified total"
+    if normalized in ["estimated", "estimate", "projection", "estimated/projection"]:
+        return "Estimated/projection"
+    return "Missing/partial"
+
+
+def data_status_badge(status):
+    label = data_status_label(status)
+    normalized = str(status).strip().lower()
+    if normalized == "verified":
+        background = "#dcfce7"
+        border = "#86efac"
+        color = "#166534"
+    elif normalized == "partial_verified_total":
+        background = "#dbeafe"
+        border = "#93c5fd"
+        color = "#1e3a8a"
+    elif normalized in ["estimated", "estimate", "projection", "estimated/projection"]:
+        background = "#fef9c3"
+        border = "#fde047"
+        color = "#854d0e"
+    else:
+        background = "#f1f5f9"
+        border = "#cbd5e1"
+        color = "#334155"
+
+    st.markdown(
+        f"""
+        <div style="
+            display:inline-block;
+            background:{background};
+            border:1px solid {border};
+            color:{color};
+            border-radius:999px;
+            padding:0.25rem 0.7rem;
+            font-size:0.85rem;
+            font-weight:700;
+            margin:0.35rem 0 0.75rem 0;">
+            {label}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def validate_columns(dataframe, required_columns, file_name):
-    missing_columns = [
-        column for column in required_columns
-        if column not in dataframe.columns
-    ]
-
-    if missing_columns:
+    missing = [column for column in required_columns if column not in dataframe.columns]
+    if missing:
         st.error(
-            f"{file_name} is missing required column(s): "
-            f"{', '.join(missing_columns)}. Please check the CSV file."
+            f"{file_name} is missing required column(s): {', '.join(missing)}. "
+            "Please check the deployment data file."
         )
         st.stop()
 
 
-validate_columns(states, REQUIRED_STATE_COLUMNS, "data/states.csv")
-validate_columns(project_costs, REQUIRED_PROJECT_COST_COLUMNS, "data/project_costs.csv")
+@st.cache_data
+def load_states():
+    budgets_path = DATA_DIR / "state_budgets.csv"
+    population_path = DATA_DIR / "state_population.csv"
+    states_path = DATA_DIR / "states.csv"
 
-# Add calculated columns
-states["annual_budget_per_person"] = (
-    states["annual_budget_ngn"] / states["population"]
-)
+    if budgets_path.exists() and population_path.exists():
+        budgets = pd.read_csv(budgets_path)
+        population = pd.read_csv(population_path)
+        validate_columns(budgets, BUDGET_BASE_COLUMNS, "data/state_budgets.csv")
+        validate_columns(population, POPULATION_COLUMNS, "data/state_population.csv")
 
-states["capital_budget_per_person"] = (
-    states["capital_budget_ngn"] / states["population"]
-)
+        for column in BUDGET_OPTIONAL_COLUMNS:
+            if column not in budgets.columns:
+                budgets[column] = pd.NA
+        if "source_id" not in budgets.columns:
+            budgets["source_id"] = "unknown"
+        if "data_status" not in budgets.columns:
+            budgets["data_status"] = "Missing/partial"
+        if "notes" not in budgets.columns:
+            budgets["notes"] = ""
 
-states["recurrent_budget_per_person"] = (
-    states["recurrent_budget_ngn"] / states["population"]
-)
+        budgets = budgets[BUDGET_COLUMNS].copy()
+        population = population[POPULATION_COLUMNS].copy()
 
-states["capital_share_percent"] = (
-    states["capital_budget_ngn"] / states["annual_budget_ngn"]
-) * 100
+        budgets["year"] = budgets["year"].astype(int)
+        population["year"] = population["year"].astype(int)
 
-states["recurrent_share_percent"] = (
-    states["recurrent_budget_ngn"] / states["annual_budget_ngn"]
-) * 100
+        budgets = budgets.rename(
+            columns={
+                "total_budget_ngn": "annual_budget_ngn",
+                "notes": "budget_notes",
+            }
+        )
+        population = population.rename(
+            columns={
+                "source_name": "population_source_name",
+                "source_url": "population_source_url",
+                "notes": "population_notes",
+            }
+        )
+
+        states = budgets.merge(
+            population,
+            on=["state", "year"],
+            how="outer",
+            validate="one_to_one",
+        )
+
+        if states.empty:
+            st.error(
+                "state_budgets.csv and state_population.csv do not share any matching "
+                "state/year rows."
+            )
+            st.stop()
+
+        states["source_id"] = states["source_id"].fillna("unknown")
+        states["data_status"] = states["data_status"].fillna("Missing/partial")
+        states["budget_notes"] = states["budget_notes"].fillna("")
+        states["budget_source_name"] = states["source_id"].fillna("unknown")
+        states["budget_source_url"] = ""
+
+        data_mode = "new"
+    else:
+        states = pd.read_csv(states_path)
+        validate_columns(states, LEGACY_STATE_COLUMNS, "data/states.csv")
+
+        if "year" not in states.columns:
+            states["year"] = 2025
+
+        states["budget_source_name"] = "Legacy prototype states.csv"
+        states["budget_source_url"] = ""
+        states["budget_notes"] = (
+            "Fallback prototype/sample value from data/states.csv."
+        )
+        states["source_id"] = "legacy_states_csv"
+        states["data_status"] = "Missing/partial"
+        for column in ["personnel_cost_ngn", "overhead_cost_ngn", "debt_service_ngn"]:
+            states[column] = pd.NA
+        states["population_source_name"] = "Legacy prototype states.csv"
+        states["population_source_url"] = ""
+        states["population_notes"] = (
+            "Fallback prototype/sample value from data/states.csv."
+        )
+        data_mode = "legacy"
 
 
-# -----------------------------
-# Sidebar navigation
-# -----------------------------
+    states["year"] = states["year"].astype(int)
+    states["data_status"] = states["data_status"].fillna("Missing/partial")
+    states["data_status"] = states["data_status"].where(
+        states["data_status"].isin(
+            [
+                "Verified",
+                "Estimated",
+                "Estimated/projection",
+                "Missing/partial",
+                "partial_verified_total",
+            ]
+        ),
+        "Missing/partial",
+    )
+
+    numeric_columns = [
+        "population",
+        "annual_budget_ngn",
+        "capital_budget_ngn",
+        "recurrent_budget_ngn",
+        "personnel_cost_ngn",
+        "overhead_cost_ngn",
+        "debt_service_ngn",
+    ]
+    for column in numeric_columns:
+        states[column] = pd.to_numeric(states[column], errors="coerce")
+
+    states["state"] = states["state"].fillna("").astype(str).str.strip()
+    states["usable_for_core_metrics"] = (
+        (states["state"] != "")
+        & (states["population"] > 0)
+        & (states["annual_budget_ngn"] > 0)
+    )
+
+    if not states["usable_for_core_metrics"].any():
+        st.error(
+            "No usable state budget rows were found. At least one row must have "
+            "state, positive population, and positive total budget."
+        )
+        st.stop()
+
+    states["annual_budget_per_person"] = states.apply(
+        lambda row: safe_divide(row["annual_budget_ngn"], row["population"]),
+        axis=1,
+    )
+    states["capital_budget_per_person"] = states.apply(
+        lambda row: safe_divide(row["capital_budget_ngn"], row["population"]),
+        axis=1,
+    )
+    states["recurrent_budget_per_person"] = states.apply(
+        lambda row: safe_divide(row["recurrent_budget_ngn"], row["population"]),
+        axis=1,
+    )
+    states["capital_share_percent"] = states.apply(
+        lambda row: (
+            safe_divide(row["capital_budget_ngn"], row["annual_budget_ngn"]) * 100
+            if has_value(safe_divide(row["capital_budget_ngn"], row["annual_budget_ngn"]))
+            else pd.NA
+        ),
+        axis=1,
+    )
+    states["recurrent_share_percent"] = states.apply(
+        lambda row: (
+            safe_divide(row["recurrent_budget_ngn"], row["annual_budget_ngn"]) * 100
+            if has_value(safe_divide(row["recurrent_budget_ngn"], row["annual_budget_ngn"]))
+            else pd.NA
+        ),
+        axis=1,
+    )
+
+    return (
+        states.sort_values(["state", "year"]).reset_index(drop=True),
+        data_mode,
+    )
+
+
+@st.cache_data
+def load_project_costs():
+    costs_path = DATA_DIR / "project_costs.csv"
+
+    if not costs_path.exists():
+        return DEFAULT_PROJECT_COSTS.copy(), True
+
+    costs = pd.read_csv(costs_path)
+
+    if all(column in costs.columns for column in PROJECT_COST_COLUMNS):
+        costs = costs[PROJECT_COST_COLUMNS].copy()
+    elif all(column in costs.columns for column in LEGACY_PROJECT_COST_COLUMNS):
+        costs = costs[LEGACY_PROJECT_COST_COLUMNS].copy()
+        costs = costs.rename(
+            columns={
+                "sector": "category",
+                "unit_name": "unit",
+                "unit_cost_ngn": "cost_ngn",
+            }
+        )
+        costs["source_name"] = "Legacy prototype project_costs.csv"
+        costs["source_url"] = ""
+        costs["notes"] = (
+            "Fallback-compatible prototype assumption from the older project_costs.csv format."
+        )
+    else:
+        return DEFAULT_PROJECT_COSTS.copy(), True
+
+    costs["cost_ngn"] = pd.to_numeric(costs["cost_ngn"], errors="coerce")
+    costs = costs.dropna(subset=["category", "item", "unit", "cost_ngn"])
+    costs = costs[costs["cost_ngn"] > 0]
+    costs[["source_name", "source_url", "notes"]] = costs[
+        ["source_name", "source_url", "notes"]
+    ].fillna("")
+
+    if costs.empty:
+        return DEFAULT_PROJECT_COSTS.copy(), True
+
+    return costs.reset_index(drop=True), False
+
+
+states, state_data_mode = load_states()
+project_costs, using_default_project_costs = load_project_costs()
+
+
+def get_state_year_selection(prefix=""):
+    state_options = states["state"].drop_duplicates().tolist()
+    selected_state = st.selectbox(
+        "Choose your state",
+        state_options,
+        key=f"{prefix}_state",
+    )
+
+    state_years = (
+        states.loc[states["state"] == selected_state, "year"]
+        .drop_duplicates()
+        .sort_values(ascending=False)
+        .tolist()
+    )
+    selected_year = st.selectbox(
+        "Choose year",
+        state_years,
+        key=f"{prefix}_year",
+    )
+
+    row = states[
+        (states["state"] == selected_state)
+        & (states["year"] == selected_year)
+    ].iloc[0]
+
+    return selected_state, selected_year, row
+
+
+def budget_breakdown_text(row):
+    capital = row["capital_share_percent"]
+    recurrent = row["recurrent_share_percent"]
+    if pd.isna(capital) or pd.isna(recurrent):
+        return (
+            "The split between projects and running government is not fully available "
+            "for this row."
+        )
+    return (
+        f"For every ₦100 in the budget, about ₦{capital:.0f} goes to "
+        f"projects and development, while about ₦{recurrent:.0f} goes to "
+        "running government."
+    )
+
+
+def partial_data_caption(row):
+    missing = []
+    labels = {
+        "capital_budget_ngn": "projects and development",
+        "recurrent_budget_ngn": "running government",
+        "personnel_cost_ngn": "personnel cost",
+        "overhead_cost_ngn": "overhead cost",
+        "debt_service_ngn": "debt service",
+    }
+    for column, label in labels.items():
+        if pd.isna(row.get(column)):
+            missing.append(label)
+
+    if missing:
+        st.caption(
+            "Partial data: "
+            + ", ".join(missing)
+            + " not available for this row."
+        )
+
+
+def has_budget_breakdown(row):
+    return has_value(row.get("capital_budget_ngn")) and has_value(
+        row.get("recurrent_budget_ngn")
+    )
+
+
+def project_translation(amount, costs):
+    rows = []
+    for _, project in costs.iterrows():
+        units = amount / project["cost_ngn"]
+        rows.append(
+            {
+                "item": project["item"],
+                "unit_name": project["unit"],
+                "unit_cost": project["cost_ngn"],
+                "units": units,
+            }
+        )
+    return rows
+
+
 st.sidebar.markdown(
     """
-    # 🇳🇬 NDS
+    # Nigeria Budget
 
-    **Nigeria Development Simulator**
-
-    Explore state budgets, development indicators and policy scenarios.
+    Simple public budget explainer.
     """
 )
 
 page = st.sidebar.radio(
-    "Navigation",
+    "Pages",
     [
-        "🏠 Overview",
-        "🗺️ State Explorer",
-        "📊 State Rankings",
-        "🧪 What-if Simulator",
-        "🏗️ Budget Structure",
-        "🗂️ Data Sources",
-        "⚙️ About the Model"
-    ]
+        "Home",
+        "State Explorer",
+        "Budget Translator",
+        "Compare States",
+        "About",
+    ],
 )
 
 
-# -----------------------------
-# Shared helper
-# -----------------------------
-def select_state():
-    selected_state = st.selectbox(
-        "Choose a state",
-        states["state"].unique()
-    )
-
-    state_data = states[states["state"] == selected_state].iloc[0]
-
-    return selected_state, state_data
-
-
-# -----------------------------
-# Overview page
-# -----------------------------
-if page == "🏠 Overview":
-    total_states = len(states)
-    total_population = states["population"].sum()
-    total_annual_budget = states["annual_budget_ngn"].sum()
-    average_capital_per_person = states["capital_budget_per_person"].mean()
-
-    st.markdown(
-    """
-    <div class="hero">
-        <h1>Nigeria Development Simulator</h1>
-        <p>
-            A public-facing tool for exploring how state budgets, population size and
-            capital spending shape simple development comparisons across Nigerian states.
-        </p>
-        <p class="hero-small">
-            Use the simulator to inspect state-level budget data, compare states and test
-            basic what-if scenarios using prototype/sample values for all 36 states plus the FCT.
-        </p>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-    st.divider()
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.metric("States + FCT", total_states)
-
-    with col2:
-        st.metric("Prototype Population", f"{total_population:,.0f}")
-
-    with col3:
-        st.metric("Total Annual Budget", f"₦{total_annual_budget:,.0f}")
-
-    with col4:
-        st.metric(
-            "Avg Capital per Person",
-            f"₦{average_capital_per_person:,.0f}"
-        )
-
-    st.divider()
-
-    st.write("### What you can explore")
-
-    explore_col1, explore_col2 = st.columns(2)
-
-    with explore_col1:
-        st.markdown(
-            """
-            <div class="overview-card">
-                <h3>Inspect a state</h3>
-                <p>
-                    Use State Explorer to view population, annual budget, capital budget,
-                    recurrent budget and per-person indicators for one state at a time.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with explore_col2:
-        st.markdown(
-            """
-            <div class="overview-card">
-                <h3>Compare states</h3>
-                <p>
-                    Use State Rankings to compare states by capital budget per person,
-                    the simulator's current simple development indicator.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    explore_col3, explore_col4 = st.columns(2)
-
-    with explore_col3:
-        st.markdown(
-            """
-            <div class="overview-card">
-                <h3>Test scenarios</h3>
-                <p>
-                    Use the What-if Simulator and Budget Structure pages to explore how
-                    capital and recurrent spending changes affect per-person figures.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with explore_col4:
-        st.markdown(
-            """
-            <div class="overview-card">
-                <h3>Check the data</h3>
-                <p>
-                    Use Data Sources to see what files power the prototype and what
-                    verified sources should be added in future versions.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    st.divider()
-
-    st.info(
-        "Prototype dataset: this version uses prototype/sample values for all 36 states "
-        "plus the FCT. The figures are not verified official data and should not be read "
-        "as a complete measure of development."
-    )
-
+if page == "Home":
     st.markdown(
         """
-        <div class="overview-cta">
+        <div class="hero">
+            <h1>Understand your state budget in simple terms.</h1>
             <p>
-                <strong>Start with State Explorer</strong> to inspect one state, or use
-                <strong>State Rankings</strong> to compare states in the current prototype dataset.
+                Pick a Nigerian state, choose a year, and see what the budget means
+                for people, projects, and everyday government spending.
             </p>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
-    with st.expander("View current prototype dataset"):
-        st.dataframe(states, use_container_width=True)
+    st.write("")
+    selected_state, selected_year, row = get_state_year_selection("home")
+    data_status_badge(row["data_status"])
 
-
-# -----------------------------
-# State Explorer page
-# -----------------------------
-elif page == "🗺️ State Explorer":
-    st.title("🗺️ State Explorer")
-    st.markdown(
-        """
-        Review one state at a time using the current budget and population fields.
-        This page helps compare the size of a state's budget with the population it serves.
-        """
+    metric_card("Total Budget", format_naira(row["annual_budget_ngn"]))
+    metric_card(
+        "Budget per Person",
+        format_naira(row["annual_budget_per_person"]),
+        "Total budget divided by the estimated population.",
     )
 
-    st.divider()
+    note_card(
+        f"{selected_state} in {selected_year}: {budget_breakdown_text(row)}"
+    )
+    partial_data_caption(row)
 
-    selector_left, selector_center, selector_right = st.columns([1, 2, 1])
-
-    with selector_center:
-        selected_state, state_data = select_state()
-
-    st.write(f"## {selected_state}")
-
-    st.caption("State-level snapshot using prototype/sample values, not verified official data.")
-
-    st.divider()
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.metric("Population", f"{state_data['population']:,.0f}")
-
-    with col2:
-        st.metric("Annual Budget", f"₦{state_data['annual_budget_ngn']:,.0f}")
-
-    with col3:
-        st.metric("Capital Budget", f"₦{state_data['capital_budget_ngn']:,.0f}")
-
-    col4, col5 = st.columns(2)
-
-    with col4:
-        st.metric("Recurrent Budget", f"₦{state_data['recurrent_budget_ngn']:,.0f}")
-
-    with col5:
-        st.metric(
-            "Annual Budget per Person",
-            f"₦{state_data['annual_budget_per_person']:,.0f}"
-        )
-
-    st.write("### Per Person Detail")
-
-    col6, col7 = st.columns(2)
-
-    with col6:
-        st.metric(
-            "Capital Budget per Person",
-            f"₦{state_data['capital_budget_per_person']:,.0f}"
-        )
-
-    with col7:
-        st.metric(
-            "Recurrent Budget per Person",
-            f"₦{state_data['recurrent_budget_per_person']:,.0f}"
-        )
-
-    st.divider()
-
-    st.write("### Interpretation")
-
-    st.markdown(
-        f"""
-        <div class="state-insight">
-            <p>
-                <strong>{selected_state}</strong> has a total annual budget of
-                <strong>₦{state_data['annual_budget_ngn']:,.0f}</strong> for a population of
-                <strong>{state_data['population']:,.0f}</strong>, which works out to
-                <strong>₦{state_data['annual_budget_per_person']:,.0f}</strong> per person.
-            </p>
-            <p>
-                Capital spending is <strong>{state_data['capital_share_percent']:.1f}%</strong>
-                of the budget, while recurrent spending is
-                <strong>{state_data['recurrent_share_percent']:.1f}%</strong>. The current simple
-                development indicator is capital budget per person:
-                <strong>₦{state_data['capital_budget_per_person']:,.0f}</strong>.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True
+    st.markdown("### What you can do")
+    metric_card(
+        "Explore your state",
+        "See the big numbers first",
+        "Start with total budget, projects, running government, and budget per person.",
+    )
+    metric_card(
+        "Translate budget into projects",
+        "Roads, schools, health centres, water",
+        "Use simple project-cost assumptions to understand the scale of a budget.",
+    )
+    metric_card(
+        "Compare states",
+        "One simple comparison page",
+        "Rank states by budget per person or by how much goes to projects.",
     )
 
     st.info(
-        "Prototype note: these figures use prototype/sample values for all 36 states plus "
-        "the FCT. They are not verified official data."
+        "Data note: use the badge above to see whether the selected figures are verified, "
+        "estimated, or missing/partial."
     )
 
+    st.markdown("### Current data coverage")
+    coverage_data = states[states["year"] == selected_year].copy()
+    total_states = coverage_data["state"].nunique()
+    states_with_budget = coverage_data.loc[
+        coverage_data["annual_budget_ngn"].notna()
+        & (coverage_data["annual_budget_ngn"] > 0),
+        "state",
+    ].nunique()
+    states_with_population = coverage_data.loc[
+        coverage_data["population"].notna() & (coverage_data["population"] > 0),
+        "state",
+    ].nunique()
+    states_with_both = coverage_data.loc[
+        coverage_data["annual_budget_ngn"].notna()
+        & (coverage_data["annual_budget_ngn"] > 0)
+        & coverage_data["population"].notna()
+        & (coverage_data["population"] > 0),
+        "state",
+    ].nunique()
 
-# -----------------------------
-# State Rankings page
-# -----------------------------
-elif page == "📊 State Rankings":
-    st.title("📊 State Rankings")
-    st.markdown(
-        """
-        Compare all 36 states plus the FCT using budget-per-person and budget structure
-        indicators calculated from the current prototype dataset.
-        """
-    )
+    metric_card("States in dataset", format_number(total_states))
+    metric_card("States with total budget", format_number(states_with_budget))
+    metric_card("States with population", format_number(states_with_population))
+    metric_card("States with both", format_number(states_with_both))
 
-    st.divider()
+    missing_budget = coverage_data[
+        coverage_data["annual_budget_ngn"].isna()
+        | (coverage_data["annual_budget_ngn"] <= 0)
+    ][["state", "year", "data_status", "budget_notes"]].copy()
 
-    ranking_options = {
-        "Annual budget per person": {
-            "column": "annual_budget_per_person",
-            "label": "Annual Budget per Person",
-            "format": "currency",
-            "description": "total annual budget divided by population"
-        },
-        "Capital budget per person": {
-            "column": "capital_budget_per_person",
-            "label": "Capital Budget per Person",
-            "format": "currency",
-            "description": "capital budget divided by population"
-        },
-        "Recurrent budget per person": {
-            "column": "recurrent_budget_per_person",
-            "label": "Recurrent Budget per Person",
-            "format": "currency",
-            "description": "recurrent budget divided by population"
-        },
-        "Capital budget share": {
-            "column": "capital_share_percent",
-            "label": "Capital Budget Share",
-            "format": "percent",
-            "description": "the percentage of the annual budget assigned to capital spending"
-        }
-    }
-
-    selected_ranking = st.radio(
-        "Rank states by",
-        list(ranking_options.keys()),
-        horizontal=True
-    )
-
-    ranking_config = ranking_options[selected_ranking]
-    ranking_column = ranking_config["column"]
-
-    ranking = states.sort_values(
-        by=ranking_column,
-        ascending=False
-    ).copy()
-
-    ranking["rank"] = range(1, len(ranking) + 1)
-
-    display_ranking = ranking[
-        [
-            "rank",
-            "state",
-            "population",
-            "annual_budget_per_person",
-            "capital_budget_per_person",
-            "recurrent_budget_per_person",
-            "capital_share_percent"
-        ]
-    ].copy()
-
-    display_ranking = display_ranking.rename(
-        columns={
-            "rank": "Rank",
-            "state": "State",
-            "population": "Population",
-            "annual_budget_per_person": "Annual Budget per Person",
-            "capital_budget_per_person": "Capital Budget per Person",
-            "recurrent_budget_per_person": "Recurrent Budget per Person",
-            "capital_share_percent": "Capital Budget Share (%)"
-        }
-    )
-
-    st.dataframe(
-        display_ranking,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Population": st.column_config.NumberColumn(format="%d"),
-            "Annual Budget per Person": st.column_config.NumberColumn(format="₦%d"),
-            "Capital Budget per Person": st.column_config.NumberColumn(format="₦%d"),
-            "Recurrent Budget per Person": st.column_config.NumberColumn(format="₦%d"),
-            "Capital Budget Share (%)": st.column_config.NumberColumn(format="%.1f%%")
-        }
-    )
-
-    st.divider()
-
-    st.write(f"### Ranking by {ranking_config['label']}")
-
-    chart_data = ranking[
-        ["state", ranking_column]
-    ].set_index("state")
-
-    st.bar_chart(chart_data)
-
-    top_state = ranking.iloc[0]
-    top_value = top_state[ranking_column]
-
-    if ranking_config["format"] == "percent":
-        top_value_text = f"{top_value:.1f}%"
+    if missing_budget.empty:
+        st.caption("All states for this year currently have a total budget value.")
     else:
-        top_value_text = f"₦{top_value:,.0f}"
-
-    st.write("### Interpretation")
-
-    st.markdown(
-        f"""
-        <div class="ranking-insight">
-            <p>
-                This ranking sorts states by <strong>{ranking_config['description']}</strong>.
-                In the current prototype dataset, <strong>{top_state['state']}</strong> ranks highest for
-                <strong>{ranking_config['label']}</strong> at <strong>{top_value_text}</strong>.
-                Higher values show stronger relative budget allocation on this specific measure,
-                not a complete measure of development.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    st.info(
-        "Prototype note: the dataset includes all 36 states plus the FCT, but the figures "
-        "are prototype/sample values rather than verified official data."
-    )
-
-
-# -----------------------------
-# What-if Simulator page
-# -----------------------------
-elif page == "🧪 What-if Simulator":
-    st.title("🧪 What-if Simulator")
-    st.markdown(
-        """
-        Adjust budget assumptions for one state and see how the changes affect
-        per-person budget indicators. This is a simple modelling workspace using
-        the current prototype/sample data.
-        """
-    )
-
-    st.divider()
-
-    selector_left, selector_center, selector_right = st.columns([1, 2, 1])
-
-    with selector_center:
-        selected_state, state_data = select_state()
-
-    st.write(f"## {selected_state}")
-    st.caption("Adjust the assumptions below to compare original and simulated figures.")
-
-    current_capital_budget = state_data["capital_budget_ngn"]
-    current_recurrent_budget = state_data["recurrent_budget_ngn"]
-    current_annual_budget = state_data["annual_budget_ngn"]
-    population = state_data["population"]
-    current_annual_per_person = state_data["annual_budget_per_person"]
-    current_capital_per_person = state_data["capital_budget_per_person"]
-    current_recurrent_per_person = state_data["recurrent_budget_per_person"]
-
-    st.divider()
-
-    st.write("### Simulation Assumptions")
-
-    control_col1, control_col2 = st.columns(2)
-
-    with control_col1:
-        capital_change_percent = st.slider(
-            "Capital budget change (%)",
-            min_value=-50,
-            max_value=100,
-            value=10,
-            step=5
-        )
-
-    with control_col2:
-        recurrent_change_percent = st.slider(
-            "Recurrent budget change (%)",
-            min_value=-50,
-            max_value=100,
-            value=0,
-            step=5
-        )
-
-    simulated_capital_budget = current_capital_budget * (1 + capital_change_percent / 100)
-    simulated_recurrent_budget = current_recurrent_budget * (1 + recurrent_change_percent / 100)
-    simulated_annual_budget = simulated_capital_budget + simulated_recurrent_budget
-
-    simulated_annual_per_person = simulated_annual_budget / population
-    simulated_capital_per_person = simulated_capital_budget / population
-    simulated_recurrent_per_person = simulated_recurrent_budget / population
-    simulated_capital_budget_increase = simulated_capital_budget - current_capital_budget
-
-    st.divider()
-
-    st.write("### Original vs Simulated")
-
-    before_col1, before_col2, before_col3 = st.columns(3)
-
-    with before_col1:
-        st.metric(
-            "Annual Budget per Person",
-            f"₦{simulated_annual_per_person:,.0f}",
-            delta=f"₦{simulated_annual_per_person - current_annual_per_person:,.0f}"
-        )
-
-    with before_col2:
-        st.metric(
-            "Capital Budget per Person",
-            f"₦{simulated_capital_per_person:,.0f}",
-            delta=f"₦{simulated_capital_per_person - current_capital_per_person:,.0f}"
-        )
-
-    with before_col3:
-        st.metric(
-            "Recurrent Budget per Person",
-            f"₦{simulated_recurrent_per_person:,.0f}",
-            delta=f"₦{simulated_recurrent_per_person - current_recurrent_per_person:,.0f}"
-        )
-
-    comparison_data = pd.DataFrame({
-        "Indicator": [
-            "Annual Budget per Person",
-            "Capital Budget per Person",
-            "Recurrent Budget per Person"
-        ],
-        "Original": [
-            current_annual_per_person,
-            current_capital_per_person,
-            current_recurrent_per_person
-        ],
-        "Simulated": [
-            simulated_annual_per_person,
-            simulated_capital_per_person,
-            simulated_recurrent_per_person
-        ]
-    }).set_index("Indicator")
-
-    st.bar_chart(comparison_data)
-
-    with st.expander("View budget totals"):
-        totals_data = pd.DataFrame({
-            "Budget Type": ["Annual Budget", "Capital Budget", "Recurrent Budget"],
-            "Original": [
-                current_annual_budget,
-                current_capital_budget,
-                current_recurrent_budget
-            ],
-            "Simulated": [
-                simulated_annual_budget,
-                simulated_capital_budget,
-                simulated_recurrent_budget
-            ]
-        })
-
-        st.dataframe(
-            totals_data,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Original": st.column_config.NumberColumn(format="₦%d"),
-                "Simulated": st.column_config.NumberColumn(format="₦%d")
+        missing_budget = missing_budget.rename(
+            columns={
+                "state": "State",
+                "year": "Year",
+                "data_status": "Status",
+                "budget_notes": "Notes",
             }
         )
+        st.caption("States where total_budget_ngn is missing:")
+        st.dataframe(missing_budget, hide_index=True, width="stretch")
 
-    st.divider()
 
-    st.write("### What could this fund?")
+elif page == "State Explorer":
+    st.title("State Explorer")
+    st.write("Choose a state and year. The page explains the budget in plain English.")
 
-    project_options = project_costs["item"].tolist()
-    selected_project_item = st.selectbox(
-        "Choose a prototype project cost assumption",
-        project_options
+    selected_state, selected_year, row = get_state_year_selection("explorer")
+
+    st.markdown(f"### {selected_state}, {selected_year}")
+    data_status_badge(row["data_status"])
+
+    metric_card("Total Budget", format_naira(row["annual_budget_ngn"]))
+    if not has_budget_breakdown(row):
+        st.info("Breakdown not yet available for this state.")
+    metric_card(
+        "Projects and Development",
+        format_naira(row["capital_budget_ngn"]),
+        "Often called capital budget. This is the part usually linked to roads, schools, hospitals, water and other projects.",
     )
+    metric_card(
+        "Running Government",
+        format_naira(row["recurrent_budget_ngn"]),
+        "Often called recurrent budget. This covers salaries, offices and day-to-day government costs.",
+    )
+    metric_card("Population", format_number(row["population"]))
+    metric_card("Budget per Person", format_naira(row["annual_budget_per_person"]))
+    metric_card(
+        "Project Budget per Person",
+        format_naira(row["capital_budget_per_person"]),
+    )
+    metric_card("For every ₦100", budget_breakdown_text(row))
+    partial_data_caption(row)
 
-    selected_project = project_costs[
-        project_costs["item"] == selected_project_item
-    ].iloc[0]
-
-    unit_cost = selected_project["unit_cost_ngn"]
-    unit_name = selected_project["unit_name"]
-
-    cost_col1, cost_col2 = st.columns(2)
-
-    with cost_col1:
-        st.metric("Additional Capital Allocation", f"₦{simulated_capital_budget_increase:,.0f}")
-
-    with cost_col2:
-        st.metric("Selected Unit Cost", f"₦{unit_cost:,.0f}")
-
-    if simulated_capital_budget_increase <= 0:
-        st.info(
-            "There is no additional capital allocation to estimate project funding from. "
-            "Increase the capital budget assumption above to see an illustrative project estimate."
+    st.markdown("### Simple explanation")
+    if not has_budget_breakdown(row) and has_value(row["annual_budget_ngn"]):
+        note_card(
+            f"{selected_state}'s total budget is {format_naira(row['annual_budget_ngn'])}. "
+            "The detailed split between projects and running government is not yet available."
         )
     else:
-        estimated_units = simulated_capital_budget_increase / unit_cost
-
-        st.metric(
-            f"Estimated {unit_name}",
-            f"{estimated_units:,.1f}"
+        note_card(
+            f"{selected_state}'s total budget is {format_naira(row['annual_budget_ngn'])}. "
+            f"Projects and development share: {format_percent(row['capital_share_percent'])}. "
+            f"Running government share: {format_percent(row['recurrent_share_percent'])}."
         )
 
-        st.write(
-            f"The simulated additional capital allocation could fund approximately "
-            f"{estimated_units:,.1f} {unit_name}."
+    with st.expander("Show technical details"):
+        detail_data = pd.DataFrame(
+            [
+                {
+                    "Label": "Annual budget per person",
+                    "Value": format_naira(row["annual_budget_per_person"]),
+                },
+                {
+                    "Label": "Capital/project budget per person",
+                    "Value": format_naira(row["capital_budget_per_person"]),
+                },
+                {
+                    "Label": "Recurrent/running government per person",
+                    "Value": format_naira(row["recurrent_budget_per_person"]),
+                },
+                {
+                    "Label": "Projects and development share",
+                    "Value": format_percent(row["capital_share_percent"]),
+                },
+                {
+                    "Label": "Running government share",
+                    "Value": format_percent(row["recurrent_share_percent"]),
+                },
+                {
+                    "Label": "Budget source",
+                    "Value": row["budget_source_name"],
+                },
+                {
+                    "Label": "Budget data status",
+                    "Value": data_status_label(row["data_status"]),
+                },
+                {
+                    "Label": "Population source",
+                    "Value": row["population_source_name"],
+                },
+            ]
         )
+        st.dataframe(detail_data, hide_index=True, width="stretch")
+
+    st.info(
+        "Data note: use the badge above to see whether these figures are verified, "
+        "estimated, or missing/partial."
+    )
+
+
+elif page == "Budget Translator":
+    st.title("Budget Translator")
+    st.write(
+        "Turn a budget amount into rough project examples. These estimates are for "
+        "understanding scale, not official promises."
+    )
+
+    selected_state, selected_year, row = get_state_year_selection("translator")
+    data_status_badge(row["data_status"])
+    partial_data_caption(row)
+
+    amount_source = st.radio(
+        "What amount should we translate?",
+        [
+            "Total budget",
+            "Projects and development budget",
+            "Custom amount",
+        ],
+    )
+
+    if amount_source == "Total budget":
+        amount = float(row["annual_budget_ngn"]) if has_value(row["annual_budget_ngn"]) else pd.NA
+    elif amount_source == "Projects and development budget":
+        if has_value(row["capital_budget_ngn"]):
+            amount = float(row["capital_budget_ngn"])
+        elif has_value(row["annual_budget_ngn"]):
+            amount = float(row["annual_budget_ngn"])
+            st.warning(
+                "Using total budget as temporary simulator baseline because capital "
+                "budget breakdown is not yet available."
+            )
+        else:
+            amount = pd.NA
+    else:
+        amount = float(
+            st.number_input(
+                "Enter custom amount in naira",
+                min_value=0,
+                value=1_000_000_000,
+                step=100_000_000,
+            )
+        )
+
+    metric_card("Amount to Translate", format_naira(amount))
+
+    if using_default_project_costs:
+        st.warning(
+            "data/project_costs.csv is missing or incomplete, so the app is using safe "
+            "default illustrative assumptions."
+        )
+
+    st.markdown("### Approximate project examples")
+    st.warning(
+        "Project translations are illustrative estimates only. They are not official "
+        "promises and are not verified procurement costs."
+    )
+
+    if not has_value(amount):
+        st.info("This amount is not available for the selected state and year.")
+    elif amount <= 0:
+        st.info("Enter an amount greater than zero to see project examples.")
+    else:
+        for project in project_translation(amount, project_costs):
+            metric_card(
+                project["item"],
+                f"{project['units']:,.1f} {project['unit_name']}",
+                f"Assumed unit cost: {format_naira(project['unit_cost'])}",
+            )
 
     st.caption(
-        "These are prototype cost assumptions, not verified procurement costs. Real costs vary "
-        "by location, inflation, procurement, terrain, specification, and implementation quality."
+        "These translations are illustrative estimates, not official promises. Real costs "
+        "vary by location, inflation, procurement, terrain, specification and implementation quality."
     )
 
-    st.write("### What changed")
+    with st.expander("Show project-cost assumptions"):
+        assumptions = project_costs.copy()
+        assumptions["cost_ngn"] = assumptions["cost_ngn"].map(format_naira)
+        assumptions = assumptions.rename(
+            columns={
+                "category": "Category",
+                "item": "Project",
+                "unit": "Unit",
+                "cost_ngn": "Assumed Unit Cost",
+                "source_name": "Source",
+                "notes": "Notes",
+            }
+        )
+        assumptions = assumptions.drop(columns=["source_url"], errors="ignore")
+        st.dataframe(assumptions, hide_index=True, width="stretch")
 
-    st.markdown(
-        f"""
-        <div class="simulation-insight">
-            <p>
-                For <strong>{selected_state}</strong>, the simulation changes capital spending by
-                <strong>{capital_change_percent}%</strong> and recurrent spending by
-                <strong>{recurrent_change_percent}%</strong>. Under these assumptions, capital
-                budget per person moves from <strong>₦{current_capital_per_person:,.0f}</strong>
-                to <strong>₦{simulated_capital_per_person:,.0f}</strong>.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True
+
+elif page == "Compare States":
+    st.title("Compare States")
+    st.write("Choose the states you want to compare for the selected year.")
+    data_status_badge("Missing/partial")
+
+    years = states["year"].drop_duplicates().sort_values(ascending=False).tolist()
+    selected_year = st.selectbox("Choose year", years, key="compare_year")
+
+    year_data = states[states["year"] == selected_year].copy()
+
+    state_options = year_data["state"].sort_values().tolist()
+    useful_defaults = [
+        state for state in ["Lagos", "Edo", "Rivers", "Kano", "FCT"]
+        if state in state_options
+    ]
+
+    selected_states = st.multiselect(
+        "Select states to compare",
+        state_options,
+        default=useful_defaults,
     )
 
-    st.info(
-        "Prototype note: this is a modelling demonstration using prototype/sample values "
-        "from states.csv. It does not include actual spending performance or wider "
-        "development outcomes."
-    )
-
-
-# -----------------------------
-# Budget Structure page
-# -----------------------------
-elif page == "🏗️ Budget Structure":
-    st.title("🏗️ Budget Structure")
-    st.markdown(
-        """
-        Explore how a selected state's annual budget is split between capital spending
-        and recurrent spending using the current prototype dataset.
-        """
-    )
-
-    st.divider()
-
-    selector_left, selector_center, selector_right = st.columns([1, 2, 1])
-
-    with selector_center:
-        selected_state, state_data = select_state()
-
-    st.write(f"## {selected_state}")
-    st.caption("Capital and recurrent shares are calculated from the annual budget fields.")
-
-    capital_share = state_data["capital_share_percent"]
-    recurrent_share = state_data["recurrent_share_percent"]
-
-    st.divider()
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.metric("Capital Share of Budget", f"{capital_share:.1f}%")
-
-    with col2:
-        st.metric("Recurrent Share of Budget", f"{recurrent_share:.1f}%")
-
-    with col3:
-        st.metric("Capital Budget", f"₦{state_data['capital_budget_ngn']:,.0f}")
-
-    with col4:
-        st.metric("Recurrent Budget", f"₦{state_data['recurrent_budget_ngn']:,.0f}")
-
-    st.divider()
-
-    st.write("### Capital vs Recurrent Spending")
-
-    budget_structure = pd.DataFrame({
-        "Budget Type": ["Capital", "Recurrent"],
-        "Amount": [
-            state_data["capital_budget_ngn"],
-            state_data["recurrent_budget_ngn"]
-        ]
-    }).set_index("Budget Type")
-
-    st.bar_chart(budget_structure)
-
-    st.write("### Interpretation")
-
-    if capital_share > recurrent_share:
-        balance_text = "leans more toward capital spending than recurrent spending"
-    elif recurrent_share > capital_share:
-        balance_text = "leans more toward recurrent spending than capital spending"
+    if not selected_states:
+        st.info("Select one or more states to compare.")
     else:
-        balance_text = "is evenly split between capital and recurrent spending"
+        comparison = year_data[
+            year_data["state"].isin(selected_states)
+        ].sort_values("state")
 
-    st.markdown(
-        f"""
-        <div class="budget-insight">
-            <p>
-                In the current prototype dataset, <strong>{selected_state}</strong>'s budget
-                <strong>{balance_text}</strong>. Capital spending accounts for
-                <strong>{capital_share:.1f}%</strong> of the annual budget, while recurrent
-                spending accounts for <strong>{recurrent_share:.1f}%</strong>.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+        st.markdown("### Selected states")
+
+        for _, row in comparison.iterrows():
+            status = row.get("data_status", "Missing/partial")
+            st.markdown(f"#### {row['state']}")
+            metric_card("Status", data_status_label(status))
+            metric_card(
+                "Total Budget",
+                format_naira(row["annual_budget_ngn"]),
+            )
+            metric_card("Projects", format_naira(row["capital_budget_ngn"]))
+            metric_card("Running Government", format_naira(row["recurrent_budget_ngn"]))
+            metric_card("Budget per Person", format_naira(row["annual_budget_per_person"]))
+            metric_card(
+                "Project Budget per Person",
+                format_naira(row["capital_budget_per_person"]),
+            )
+            metric_card("Project Share", format_percent(row["capital_share_percent"]))
+            partial_data_caption(row)
+
+        st.markdown("### Project Budget per Person")
+        chart_data = comparison.dropna(
+            subset=["capital_budget_per_person"]
+        ).set_index("state")[["capital_budget_per_person"]]
+        if chart_data.empty:
+            st.info("Project budget per person is not available for the selected states.")
+        else:
+            st.bar_chart(chart_data)
+
+        with st.expander("See comparison table"):
+            display = comparison[
+                [
+                    "state",
+                    "annual_budget_ngn",
+                    "capital_budget_ngn",
+                    "recurrent_budget_ngn",
+                    "annual_budget_per_person",
+                    "capital_budget_per_person",
+                    "capital_share_percent",
+                    "data_status",
+                ]
+            ].copy()
+            display["annual_budget_ngn"] = display["annual_budget_ngn"].map(format_naira)
+            display["capital_budget_ngn"] = display["capital_budget_ngn"].map(format_naira)
+            display["recurrent_budget_ngn"] = display["recurrent_budget_ngn"].map(format_naira)
+            display["annual_budget_per_person"] = display[
+                "annual_budget_per_person"
+            ].map(format_naira)
+            display["capital_budget_per_person"] = display[
+                "capital_budget_per_person"
+            ].map(format_naira)
+            display["capital_share_percent"] = display[
+                "capital_share_percent"
+            ].map(format_percent)
+            display["data_status"] = display["data_status"].map(data_status_label)
+            display = display.rename(
+                columns={
+                    "state": "State",
+                    "annual_budget_ngn": "Total Budget",
+                    "capital_budget_ngn": "Projects",
+                    "recurrent_budget_ngn": "Running Government",
+                    "annual_budget_per_person": "Budget per Person",
+                    "capital_budget_per_person": "Project Budget per Person",
+                    "capital_share_percent": "Project Share",
+                    "data_status": "Status",
+                }
+            )
+            st.dataframe(display, hide_index=True, width="stretch")
+
+        if len(selected_states) == 1:
+            note_card(
+                "You selected one state. Add more states above if you want a side-by-side comparison."
+            )
+        else:
+            note_card(
+                "This comparison shows budget size and per-person figures. It does not prove "
+                "which state delivers better development outcomes."
+            )
+
+    with st.expander("See top states ranking"):
+        ranking_options = {
+            "Total Budget": "annual_budget_ngn",
+            "Budget per Person": "annual_budget_per_person",
+            "Project Budget per Person": "capital_budget_per_person",
+            "Project Share": "capital_share_percent",
+        }
+        selected_ranking = st.radio(
+            "Rank by",
+            list(ranking_options.keys()),
+            key="top_states_ranking_metric",
+        )
+        ranking_column = ranking_options[selected_ranking]
+        ranked = year_data.dropna(subset=[ranking_column]).sort_values(
+            ranking_column,
+            ascending=False,
+        ).head(10)
+        if ranked.empty:
+            st.info(f"{selected_ranking} is not available for ranking.")
+        else:
+            if selected_ranking == "Total Budget":
+                st.caption(
+                    "Rankings currently cover only states with verified/pilot total budget values."
+                )
+            display = ranked[
+                [
+                    "state",
+                    ranking_column,
+                    "data_status",
+                ]
+            ].copy()
+            if ranking_column == "capital_share_percent":
+                display[ranking_column] = display[ranking_column].map(format_percent)
+            else:
+                display[ranking_column] = display[ranking_column].map(format_naira)
+            display["data_status"] = display["data_status"].map(data_status_label)
+            display = display.rename(
+                columns={
+                    "state": "State",
+                    "annual_budget_ngn": "Total Budget",
+                    "annual_budget_per_person": "Budget per Person",
+                    "capital_budget_per_person": "Project Budget per Person",
+                    "capital_share_percent": "Project Share",
+                    "data_status": "Status",
+                }
+            )
+            st.dataframe(display, hide_index=True, width="stretch")
 
     st.info(
-        "Prototype note: these figures come from prototype/sample values in states.csv, "
-        "not verified official data. Capital spending usually refers to projects and "
-        "infrastructure, while recurrent spending covers ongoing government operating costs."
+        "Data note: comparison rows may mix verified, estimated, and missing/partial data."
     )
 
 
-# -----------------------------
-# Archived/internal page: removed from public navigation.
-# Kept in place for now so the old prototype statistics code is not lost.
-# -----------------------------
-elif page == "📈 M248 Statistics Lab":
-    st.title("📈 M248 Statistics Lab")
-
-    st.markdown(
-        """
-        This section is where your M248 statistics becomes useful.
-
-        Later, we can use the data to explore:
-
-        - Mean and variance of state budget indicators
-        - Outliers
-        - Correlation
-        - Regression
-        - Confidence intervals
-        - Comparing groups of states
-        """
+# Hidden internal page: source-handling code is kept intact, but this page is
+# currently not linked from the public sidebar menu.
+elif page == "Data Sources":
+    st.title("Data Sources")
+    st.write(
+        "This prototype uses local CSV files. It now prefers separate budget, population "
+        "and source files when they exist, while keeping the old states.csv fallback for deployment safety."
     )
 
-    st.divider()
+    metric_card("State rows", format_number(len(states)))
+    metric_card("Project-cost assumptions", format_number(len(project_costs)))
 
-    mean_capital_per_person = states["capital_budget_per_person"].mean()
-    variance_capital_per_person = states["capital_budget_per_person"].var()
-    standard_deviation_capital_per_person = states["capital_budget_per_person"].std()
+    st.markdown("### Current files")
+    metric_card(
+        "data/state_budgets.csv",
+        "Preferred budget file",
+        "Columns include budget amounts, personnel/overhead/debt fields, source_id, data_status and notes.",
+    )
+    metric_card(
+        "data/state_population.csv",
+        "Preferred population file",
+        "Columns: state, year, population, source_name, source_url, notes.",
+    )
+    metric_card(
+        "data/project_costs.csv",
+        "Illustrative project-cost assumptions",
+        "Columns: category, item, unit, cost_ngn, source_name, source_url, notes. If missing or incomplete, safe default assumptions are used.",
+    )
+    metric_card(
+        "data/sources.csv",
+        "Source catalogue",
+        "Documents source_id, publisher, year, URL, source type, access date and reliability notes.",
+    )
 
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.metric(
-            "Mean Capital Budget per Person",
-            f"₦{mean_capital_per_person:,.0f}"
+    if state_data_mode == "legacy":
+        st.warning(
+            "The app is currently using the legacy data/states.csv fallback because the "
+            "separate state_budgets.csv and state_population.csv files are not both available."
+        )
+    else:
+        st.info(
+            "The app is currently using the separated budget and population files."
         )
 
-    with col2:
-        st.metric(
-            "Variance",
-            f"{variance_capital_per_person:,.0f}"
+    st.markdown("### What should be added later")
+    note_card(
+        "Future public versions should use verified sources such as official state "
+        "budget documents, National Bureau of Statistics data and other credible public datasets."
+    )
+
+    st.markdown("### Source notes")
+    note_card(
+        "Current rows are still prototype/sample values unless source_id, data_status "
+        "and notes are replaced with verified source details."
+    )
+
+    st.markdown("### Data status")
+    metric_card(
+        "Verified source",
+        "Official or reputable",
+        "Taken from an official budget document or a reputable published dataset.",
+    )
+    metric_card(
+        "Estimated/projection",
+        "Derived or assumed",
+        "Derived from available public figures or transparent assumptions.",
+    )
+    metric_card(
+        "Missing/partial",
+        "Prototype only",
+        "Prototype data that should not be relied upon for public decisions.",
+    )
+
+    with st.expander("Preview normalized state data"):
+        preview_columns = [
+            "state",
+            "year",
+            "data_status",
+            "annual_budget_ngn",
+            "capital_budget_ngn",
+            "recurrent_budget_ngn",
+            "population",
+            "budget_source_name",
+            "population_source_name",
+        ]
+        st.dataframe(states[preview_columns].head(37), hide_index=True, width="stretch")
+
+    with st.expander("Preview project_costs.csv"):
+        st.dataframe(project_costs, hide_index=True, width="stretch")
+
+    sources_path = DATA_DIR / "sources.csv"
+    if sources_path.exists():
+        with st.expander("Preview sources.csv"):
+            sources = pd.read_csv(sources_path)
+            st.dataframe(sources, hide_index=True, width="stretch")
+
+
+elif page == "About":
+    st.title("About")
+    data_status_badge("Missing/partial")
+    st.write(
+        "Nigeria Development Simulator is a public budget explainer. It is designed "
+        "to help people understand state budgets quickly on a phone."
+    )
+
+    st.markdown("### What it can explain")
+    metric_card("Total Budget", "How much the state plans to spend")
+    metric_card("Projects and Development", "Money usually linked to capital projects")
+    metric_card("Running Government", "Money for salaries and day-to-day operations")
+    metric_card("For every ₦100", "A simple split between projects and running government")
+
+    st.markdown("### Important limits")
+    note_card(
+        "Budget figures alone do not prove development. Real outcomes depend on "
+        "implementation, governance, procurement, inflation, security, education, health, "
+        "infrastructure and many other factors."
+    )
+    note_card(
+        "Rows may be verified, estimated/projection, or missing/partial. Project "
+        "translations are illustrative estimates, not official promises."
+    )
+
+    with st.expander("Technical notes"):
+        st.write(
+            "The app calculates budget per person, project budget per person, recurrent "
+            "budget per person, and the percentage split between capital and recurrent budgets."
         )
-
-    with col3:
-        st.metric(
-            "Standard Deviation",
-            f"₦{standard_deviation_capital_per_person:,.0f}"
-        )
-
-    st.info(
-        "Because the current dataset is still very small, these statistics are only illustrative. "
-        "They will become more useful when we add all Nigerian states and more indicators."
-    )
-
-
-# -----------------------------
-# About the Model page
-# -----------------------------
-elif page == "⚙️ About the Model":
-    st.title("⚙️ About the Model")
-    st.markdown(
-        """
-        The Nigeria Development Simulator is a prototype tool for exploring how state
-        budget figures relate to population size and simple per-person indicators.
-        """
-    )
-
-    st.divider()
-
-    st.write("### Current Prototype Dataset")
-    st.markdown(
-        """
-        The current app uses prototype/sample values for all 36 states plus the FCT
-        from `states.csv`.
-
-        It currently includes:
-
-        - State name
-        - Population
-        - Annual budget
-        - Capital budget
-        - Recurrent budget
-
-        The state list is complete, but the figures are not verified official data.
-        The dataset is useful for testing the simulator interface and basic calculations.
-        """
-    )
-
-    st.write("### Current Indicators")
-    st.markdown(
-        """
-        The app currently calculates five simple indicators:
-
-        - **Annual budget per person:** annual budget divided by population.
-        - **Capital budget per person:** capital budget divided by population.
-        - **Recurrent budget per person:** recurrent budget divided by population.
-        - **Capital budget share:** capital budget as a percentage of annual budget.
-        - **Recurrent budget share:** recurrent budget as a percentage of annual budget.
-        """
-    )
-
-    st.write("### What the Simulator Can Currently Show")
-    st.markdown(
-        """
-        With the current data, the simulator can:
-
-        - Compare all 36 states plus the FCT by budget-per-person indicators.
-        - Show how capital and recurrent spending are split.
-        - Test simple what-if changes to capital and recurrent budgets.
-        - Explain how each state looks under the current prototype calculations.
-        """
-    )
-
-    st.write("### Limitations")
-    st.markdown(
-        """
-        This prototype should be interpreted carefully.
-
-        - The current dataset contains prototype/sample values, not verified official data.
-        - Budget figures alone do not prove development outcomes.
-        - Real development depends on implementation, governance, procurement, inflation,
-          security, education, health, infrastructure and many other factors.
-        - The app does not yet measure whether money was actually spent well or whether
-          projects were completed.
-        """
-    )
-
-    st.write("### Next Improvements")
-    st.markdown(
-        """
-        Stronger future versions can add:
-
-        - Verified official values for Nigerian states and the FCT.
-        - Verified data sources.
-        - Year-by-year trends.
-        - Sector-level budgets.
-        - Project cost assumptions.
-        - Richer development indicators.
-        """
-    )
-
-
-# -----------------------------
-# Data Sources page
-# -----------------------------
-elif page == "🗂️ Data Sources":
-    st.title("🗂️ Data Sources")
-    st.markdown(
-        """
-        This page explains what data currently powers the prototype and what should
-        be added before the simulator is treated as a verified public evidence tool.
-        """
-    )
-
-    st.divider()
-
-    st.write("### Current Prototype Files")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.metric("States in states.csv", len(states))
-
-    with col2:
-        st.metric("Project cost items", len(project_costs))
-
-    st.markdown(
-        """
-        The app currently uses two local CSV files:
-
-        - `data/states.csv`: prototype/sample state-level budget and population values
-          for all 36 states plus the FCT, used by the main simulator pages.
-        - `data/project_costs.csv`: prototype project-cost assumptions used for
-          illustrative development modelling in the What-if Simulator.
-        """
-    )
-
-    st.write("### Prototype Status")
-    st.info(
-        "The current dataset contains prototype/sample values for all 36 states plus the "
-        "FCT. The state list is complete, but the figures are not verified official data."
-    )
-
-    st.write("### Future Verified Sources")
-    st.markdown(
-        """
-        Future versions should replace or validate the prototype/sample figures using
-        credible public sources, such as:
-
-        - Official state budget documents.
-        - National Bureau of Statistics data.
-        - Other credible public datasets from government, development institutions or
-          reputable research organisations.
-        """
-    )
-
-    st.write("### Data Preview")
-
-    with st.expander("View states.csv prototype data"):
-        st.dataframe(states, use_container_width=True)
-
-    with st.expander("View project_costs.csv prototype data"):
-        st.dataframe(project_costs, use_container_width=True)
