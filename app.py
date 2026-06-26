@@ -110,6 +110,15 @@ DEFAULT_PROJECT_COSTS = pd.DataFrame(
     ]
 )
 
+POPULATION_ESTIMATE_NOTE = (
+    "Population values are currently prototype estimates pending replacement with "
+    "verified demographic data."
+)
+
+PROJECT_COST_ESTIMATE_NOTE = (
+    "Project cost examples are illustrative estimates pending verified benchmark costs."
+)
+
 
 st.set_page_config(
     page_title="Nigeria Development Simulator",
@@ -424,7 +433,7 @@ st.markdown(
 
 def format_naira(value):
     if pd.isna(value):
-        return "Not available"
+        return "Not available yet"
     return f"₦{value:,.0f}"
 
 
@@ -436,7 +445,7 @@ def format_number(value):
 
 def format_percent(value):
     if pd.isna(value):
-        return "Not available"
+        return "Not available yet"
     return f"{value:.1f}%"
 
 
@@ -473,6 +482,14 @@ def note_card(text):
         """,
         unsafe_allow_html=True,
     )
+
+
+def population_note():
+    st.caption(POPULATION_ESTIMATE_NOTE)
+
+
+def project_cost_note():
+    st.caption(PROJECT_COST_ESTIMATE_NOTE)
 
 
 def data_status_label(status):
@@ -541,11 +558,27 @@ def load_states():
     population_path = DATA_DIR / "state_population.csv"
     states_path = DATA_DIR / "states.csv"
 
-    if budgets_path.exists() and population_path.exists():
+    if budgets_path.exists():
         budgets = pd.read_csv(budgets_path)
-        population = pd.read_csv(population_path)
         validate_columns(budgets, BUDGET_BASE_COLUMNS, "data/state_budgets.csv")
-        validate_columns(population, POPULATION_COLUMNS, "data/state_population.csv")
+
+        if population_path.exists():
+            population = pd.read_csv(population_path)
+            validate_columns(population, POPULATION_COLUMNS, "data/state_population.csv")
+            population = population[POPULATION_COLUMNS].copy()
+        elif states_path.exists():
+            population = pd.read_csv(states_path)
+            validate_columns(population, LEGACY_STATE_COLUMNS, "data/states.csv")
+            if "year" not in population.columns:
+                population["year"] = 2025
+            population = population[["state", "year", "population"]].copy()
+            population["source_name"] = "Legacy prototype states.csv"
+            population["source_url"] = ""
+            population["notes"] = (
+                "Fallback prototype/sample population value from data/states.csv."
+            )
+        else:
+            population = pd.DataFrame(columns=POPULATION_COLUMNS)
 
         for column in BUDGET_OPTIONAL_COLUMNS:
             if column not in budgets.columns:
@@ -558,7 +591,6 @@ def load_states():
             budgets["notes"] = ""
 
         budgets = budgets[BUDGET_COLUMNS].copy()
-        population = population[POPULATION_COLUMNS].copy()
 
         budgets["year"] = budgets["year"].astype(int)
         population["year"] = population["year"].astype(int)
@@ -586,8 +618,8 @@ def load_states():
 
         if states.empty:
             st.error(
-                "state_budgets.csv and state_population.csv do not share any matching "
-                "state/year rows."
+                "No budget rows were found in data/state_budgets.csv. Please check "
+                "the deployment data file."
             )
             st.stop()
 
@@ -872,6 +904,7 @@ if page == "Home":
         format_naira(row["annual_budget_per_person"]),
         "Total budget divided by the estimated population.",
     )
+    population_note()
 
     note_card(
         f"{selected_state} in {selected_year}: {budget_breakdown_text(row)}"
@@ -973,6 +1006,7 @@ elif page == "State Explorer":
         "Project Budget per Person",
         format_naira(row["capital_budget_per_person"]),
     )
+    population_note()
     metric_card("For every ₦100", budget_breakdown_text(row))
     partial_data_caption(row)
 
@@ -1078,6 +1112,7 @@ elif page == "Budget Translator":
         )
 
     metric_card("Amount to Translate", format_naira(amount))
+    project_cost_note()
 
     if using_default_project_costs:
         st.warning(
@@ -1128,7 +1163,7 @@ elif page == "Budget Translator":
 elif page == "Compare States":
     st.title("Compare States")
     st.write("Choose the states you want to compare for the selected year.")
-    data_status_badge("Missing/partial")
+    st.caption("Each selected state shows its own budget data status.")
 
     years = states["year"].drop_duplicates().sort_values(ascending=False).tolist()
     selected_year = st.selectbox("Choose year", years, key="compare_year")
@@ -1173,6 +1208,8 @@ elif page == "Compare States":
             )
             metric_card("Project Share", format_percent(row["capital_share_percent"]))
             partial_data_caption(row)
+
+        population_note()
 
         st.markdown("### Project Budget per Person")
         chart_data = comparison.dropna(
@@ -1245,6 +1282,11 @@ elif page == "Compare States":
             list(ranking_options.keys()),
             key="top_states_ranking_metric",
         )
+        if selected_ranking in [
+            "Budget per Person",
+            "Project Budget per Person",
+        ]:
+            population_note()
         ranking_column = ranking_options[selected_ranking]
         ranked = year_data.dropna(subset=[ranking_column]).sort_values(
             ranking_column,
