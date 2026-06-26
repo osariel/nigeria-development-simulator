@@ -119,6 +119,11 @@ PROJECT_COST_ESTIMATE_NOTE = (
     "method, inflation, and project specification."
 )
 
+PUBLIC_DISCLAIMER = (
+    "This tool is for civic education and exploratory analysis. It does not provide "
+    "financial, legal, or official government advice."
+)
+
 
 st.set_page_config(
     page_title="Nigeria Development Simulator",
@@ -432,10 +437,32 @@ st.markdown(
 )
 
 
-def format_naira(value):
+def format_ngn(value, long_form=False):
     if pd.isna(value):
         return "Not available yet"
+
+    absolute_value = abs(value)
+    scales = [
+        (1_000_000_000_000, "tn", "trillion"),
+        (1_000_000_000, "bn", "billion"),
+        (1_000_000, "m", "million"),
+    ]
+    for divisor, compact_suffix, long_suffix in scales:
+        if absolute_value >= divisor:
+            amount = value / divisor
+            suffix = long_suffix if long_form else compact_suffix
+            separator = " " if long_form else ""
+            return f"₦{amount:,.2f}{separator}{suffix}"
+
     return f"₦{value:,.0f}"
+
+
+def format_naira(value):
+    return format_ngn(value)
+
+
+def format_ngn_long(value):
+    return format_ngn(value, long_form=True)
 
 
 def format_number(value):
@@ -500,16 +527,39 @@ def data_status_label(status):
     if normalized == "verified_breakdown":
         return "Verified breakdown"
     if normalized == "approved_total_verified":
-        return "Approved total verified"
+        return "Verified total"
     if normalized == "approved_total_needs_review":
-        return "Approved total needs review"
+        return "Needs review"
     if normalized == "partial_verified_total":
-        return "Partial verified total"
+        return "Verified total, breakdown pending"
     if normalized == "proposed_total_needs_review":
-        return "Proposed total needs review"
+        return "Proposed / not final"
     if normalized in ["estimated", "estimate", "projection", "estimated/projection"]:
         return "Estimated/projection"
-    return "Missing/partial"
+    return "Not available yet"
+
+
+def data_status_caption(status):
+    normalized = str(status).strip().lower()
+    captions = {
+        "verified_breakdown": (
+            "Total, projects and running-government figures are available from a clear source."
+        ),
+        "approved_total_verified": (
+            "Approved total is available; detailed budget breakdown is not yet extracted."
+        ),
+        "partial_verified_total": (
+            "Total is available from a comparative source; breakdown is still pending."
+        ),
+        "approved_total_needs_review": (
+            "A public approved-total figure is available but still needs source review."
+        ),
+        "proposed_total_needs_review": (
+            "This appears to be a proposal or pre-final figure, not a final approved budget."
+        ),
+        "missing": "The budget figure has not yet been entered for this state/year.",
+    }
+    return captions.get(normalized, "Use this badge as a quick guide to data confidence.")
 
 
 def data_status_badge(status):
@@ -556,6 +606,16 @@ def data_status_badge(status):
         """,
         unsafe_allow_html=True,
     )
+    st.caption(data_status_caption(status))
+
+
+def source_caption(row):
+    source_id = str(row.get("source_id", "")).strip()
+    source_name = str(row.get("budget_source_name", "")).strip()
+    if source_id in ["", "SRC_PENDING", "unknown"] or not source_name:
+        st.caption("Source pending")
+    else:
+        st.caption(f"Source: {source_name}")
 
 
 def validate_columns(dataframe, required_columns, file_name):
@@ -568,22 +628,33 @@ def validate_columns(dataframe, required_columns, file_name):
         st.stop()
 
 
+def safe_read_csv(path, file_name):
+    try:
+        return pd.read_csv(path)
+    except Exception:
+        st.error(
+            f"{file_name} could not be loaded. Please check the deployment data file."
+        )
+        st.stop()
+
+
 @st.cache_data
 def load_states():
     budgets_path = DATA_DIR / "state_budgets.csv"
     population_path = DATA_DIR / "state_population.csv"
     states_path = DATA_DIR / "states.csv"
+    sources_path = DATA_DIR / "sources.csv"
 
     if budgets_path.exists():
-        budgets = pd.read_csv(budgets_path)
+        budgets = safe_read_csv(budgets_path, "data/state_budgets.csv")
         validate_columns(budgets, BUDGET_BASE_COLUMNS, "data/state_budgets.csv")
 
         if population_path.exists():
-            population = pd.read_csv(population_path)
+            population = safe_read_csv(population_path, "data/state_population.csv")
             validate_columns(population, POPULATION_COLUMNS, "data/state_population.csv")
             population = population[POPULATION_COLUMNS].copy()
         elif states_path.exists():
-            population = pd.read_csv(states_path)
+            population = safe_read_csv(states_path, "data/states.csv")
             validate_columns(population, LEGACY_STATE_COLUMNS, "data/states.csv")
             if "year" not in population.columns:
                 population["year"] = 2025
@@ -642,12 +713,33 @@ def load_states():
         states["source_id"] = states["source_id"].fillna("unknown")
         states["data_status"] = states["data_status"].fillna("Missing/partial")
         states["budget_notes"] = states["budget_notes"].fillna("")
-        states["budget_source_name"] = states["source_id"].fillna("unknown")
+        if sources_path.exists():
+            sources = safe_read_csv(sources_path, "data/sources.csv")
+            if {"source_id", "source_name"}.issubset(sources.columns):
+                source_lookup = (
+                    sources[["source_id", "source_name"]]
+                    .dropna(subset=["source_id"])
+                    .drop_duplicates(subset=["source_id"], keep="last")
+                )
+                states = states.merge(
+                    source_lookup,
+                    on="source_id",
+                    how="left",
+                    validate="many_to_one",
+                )
+                states["budget_source_name"] = states["source_name"].fillna(
+                    states["source_id"]
+                )
+                states = states.drop(columns=["source_name"])
+            else:
+                states["budget_source_name"] = states["source_id"].fillna("unknown")
+        else:
+            states["budget_source_name"] = states["source_id"].fillna("unknown")
         states["budget_source_url"] = ""
 
         data_mode = "new"
     else:
-        states = pd.read_csv(states_path)
+        states = safe_read_csv(states_path, "data/states.csv")
         validate_columns(states, LEGACY_STATE_COLUMNS, "data/states.csv")
 
         if "year" not in states.columns:
@@ -758,7 +850,7 @@ def load_project_costs():
     if not costs_path.exists():
         return DEFAULT_PROJECT_COSTS.copy(), True
 
-    costs = pd.read_csv(costs_path)
+    costs = safe_read_csv(costs_path, "data/project_costs.csv")
 
     if all(column in costs.columns for column in PROJECT_COST_COLUMNS):
         costs = costs[PROJECT_COST_COLUMNS].copy()
@@ -890,6 +982,38 @@ def has_budget_breakdown(row):
     )
 
 
+def total_budget_help(row):
+    if not has_value(row.get("annual_budget_ngn")):
+        return "This total budget figure has not yet been extracted for this state/year."
+    if not has_budget_breakdown(row):
+        return "The approved total is available; the projects/running-government split is still pending."
+    return "This is the approved spending envelope recorded for the selected year."
+
+
+def capital_budget_help(row):
+    if not has_value(row.get("capital_budget_ngn")):
+        return "The projects and development figure has not yet been extracted."
+    return "This is the portion usually linked to infrastructure and development projects."
+
+
+def recurrent_budget_help(row):
+    if not has_value(row.get("recurrent_budget_ngn")):
+        return "The running-government figure has not yet been extracted."
+    return "This is the portion usually linked to salaries and day-to-day government costs."
+
+
+def per_person_budget_help(row):
+    if not has_value(row.get("annual_budget_per_person")):
+        return "This cannot be calculated until both total budget and population are available."
+    return "Approximate amount per resident, using projection-based population figures."
+
+
+def project_per_person_budget_help(row):
+    if not has_value(row.get("capital_budget_per_person")):
+        return "This cannot be calculated until the projects budget is available."
+    return "Approximate projects budget per resident, using projection-based population figures."
+
+
 def project_translation(amount, costs):
     rows = []
     for _, project in costs.iterrows():
@@ -964,11 +1088,15 @@ if page == "Home":
     )
     data_status_badge(row["data_status"])
 
-    metric_card("Total Budget", format_naira(row["annual_budget_ngn"]))
+    metric_card(
+        "Total Budget",
+        format_naira(row["annual_budget_ngn"]),
+        total_budget_help(row),
+    )
     metric_card(
         "Budget per Person",
         format_naira(row["annual_budget_per_person"]),
-        "Total budget divided by the estimated population.",
+        per_person_budget_help(row),
     )
     population_note()
 
@@ -1054,25 +1182,35 @@ elif page == "State Explorer":
 
     st.markdown(f"### {selected_state}, {selected_year}")
     data_status_badge(row["data_status"])
+    source_caption(row)
 
-    metric_card("Total Budget", format_naira(row["annual_budget_ngn"]))
+    metric_card(
+        "Total Budget",
+        format_naira(row["annual_budget_ngn"]),
+        total_budget_help(row),
+    )
     if not has_budget_breakdown(row):
         st.info("Breakdown not yet available for this state.")
     metric_card(
         "Projects and Development",
         format_naira(row["capital_budget_ngn"]),
-        "Often called capital budget. This is the part usually linked to roads, schools, hospitals, water and other projects.",
+        capital_budget_help(row),
     )
     metric_card(
         "Running Government",
         format_naira(row["recurrent_budget_ngn"]),
-        "Often called recurrent budget. This covers salaries, offices and day-to-day government costs.",
+        recurrent_budget_help(row),
     )
     metric_card("Population", format_number(row["population"]))
-    metric_card("Budget per Person", format_naira(row["annual_budget_per_person"]))
+    metric_card(
+        "Budget per Person",
+        format_naira(row["annual_budget_per_person"]),
+        per_person_budget_help(row),
+    )
     metric_card(
         "Project Budget per Person",
         format_naira(row["capital_budget_per_person"]),
+        project_per_person_budget_help(row),
     )
     population_note()
     metric_card("For every ₦100", budget_breakdown_text(row))
@@ -1081,12 +1219,12 @@ elif page == "State Explorer":
     st.markdown("### Simple explanation")
     if not has_budget_breakdown(row) and has_value(row["annual_budget_ngn"]):
         note_card(
-            f"{selected_state}'s total budget is {format_naira(row['annual_budget_ngn'])}. "
+            f"{selected_state}'s total budget is {format_ngn_long(row['annual_budget_ngn'])}. "
             "The detailed split between projects and running government is not yet available."
         )
     else:
         note_card(
-            f"{selected_state}'s total budget is {format_naira(row['annual_budget_ngn'])}. "
+            f"{selected_state}'s total budget is {format_ngn_long(row['annual_budget_ngn'])}. "
             f"Projects and development share: {format_percent(row['capital_share_percent'])}. "
             f"Running government share: {format_percent(row['recurrent_share_percent'])}."
         )
@@ -1096,15 +1234,15 @@ elif page == "State Explorer":
             [
                 {
                     "Label": "Annual budget per person",
-                    "Value": format_naira(row["annual_budget_per_person"]),
+                    "Value": format_ngn_long(row["annual_budget_per_person"]),
                 },
                 {
                     "Label": "Capital/project budget per person",
-                    "Value": format_naira(row["capital_budget_per_person"]),
+                    "Value": format_ngn_long(row["capital_budget_per_person"]),
                 },
                 {
                     "Label": "Recurrent/running government per person",
-                    "Value": format_naira(row["recurrent_budget_per_person"]),
+                    "Value": format_ngn_long(row["recurrent_budget_per_person"]),
                 },
                 {
                     "Label": "Projects and development share",
@@ -1147,6 +1285,7 @@ elif page == "Budget Translator":
         selected_year_data, selected_year, "translator"
     )
     data_status_badge(row["data_status"])
+    source_caption(row)
     partial_data_caption(row)
 
     amount_source = st.radio(
@@ -1205,7 +1344,7 @@ elif page == "Budget Translator":
             metric_card(
                 project["item"],
                 f"{project['units']:,.1f} {project['unit_name']}",
-                f"Assumed unit cost: {format_naira(project['unit_cost'])}",
+                f"Assumed unit cost: {format_ngn_long(project['unit_cost'])}",
             )
 
     st.caption(
@@ -1215,7 +1354,7 @@ elif page == "Budget Translator":
 
     with st.expander("Show project-cost assumptions"):
         assumptions = project_costs.copy()
-        assumptions["cost_ngn"] = assumptions["cost_ngn"].map(format_naira)
+        assumptions["cost_ngn"] = assumptions["cost_ngn"].map(format_ngn_long)
         assumptions = assumptions.rename(
             columns={
                 "category": "Category",
@@ -1261,17 +1400,31 @@ elif page == "Compare States":
         for _, row in comparison.iterrows():
             status = row.get("data_status", "Missing/partial")
             st.markdown(f"#### {row['state']}")
-            metric_card("Status", data_status_label(status))
+            data_status_badge(status)
             metric_card(
                 "Total Budget",
                 format_naira(row["annual_budget_ngn"]),
+                total_budget_help(row),
             )
-            metric_card("Projects", format_naira(row["capital_budget_ngn"]))
-            metric_card("Running Government", format_naira(row["recurrent_budget_ngn"]))
-            metric_card("Budget per Person", format_naira(row["annual_budget_per_person"]))
+            metric_card(
+                "Projects",
+                format_naira(row["capital_budget_ngn"]),
+                capital_budget_help(row),
+            )
+            metric_card(
+                "Running Government",
+                format_naira(row["recurrent_budget_ngn"]),
+                recurrent_budget_help(row),
+            )
+            metric_card(
+                "Budget per Person",
+                format_naira(row["annual_budget_per_person"]),
+                per_person_budget_help(row),
+            )
             metric_card(
                 "Project Budget per Person",
                 format_naira(row["capital_budget_per_person"]),
+                project_per_person_budget_help(row),
             )
             metric_card("Project Share", format_percent(row["capital_share_percent"]))
             partial_data_caption(row)
@@ -1300,15 +1453,15 @@ elif page == "Compare States":
                     "data_status",
                 ]
             ].copy()
-            display["annual_budget_ngn"] = display["annual_budget_ngn"].map(format_naira)
-            display["capital_budget_ngn"] = display["capital_budget_ngn"].map(format_naira)
-            display["recurrent_budget_ngn"] = display["recurrent_budget_ngn"].map(format_naira)
+            display["annual_budget_ngn"] = display["annual_budget_ngn"].map(format_ngn_long)
+            display["capital_budget_ngn"] = display["capital_budget_ngn"].map(format_ngn_long)
+            display["recurrent_budget_ngn"] = display["recurrent_budget_ngn"].map(format_ngn_long)
             display["annual_budget_per_person"] = display[
                 "annual_budget_per_person"
-            ].map(format_naira)
+            ].map(format_ngn_long)
             display["capital_budget_per_person"] = display[
                 "capital_budget_per_person"
-            ].map(format_naira)
+            ].map(format_ngn_long)
             display["capital_share_percent"] = display[
                 "capital_share_percent"
             ].map(format_percent)
@@ -1338,6 +1491,7 @@ elif page == "Compare States":
             )
 
     with st.expander("See top states ranking"):
+        data_status_badge("approved_total_verified")
         ranking_options = {
             "Total Budget": "annual_budget_ngn",
             "Budget per Person": "annual_budget_per_person",
@@ -1376,7 +1530,7 @@ elif page == "Compare States":
             if ranking_column == "capital_share_percent":
                 display[ranking_column] = display[ranking_column].map(format_percent)
             else:
-                display[ranking_column] = display[ranking_column].map(format_naira)
+                display[ranking_column] = display[ranking_column].map(format_ngn_long)
             display["data_status"] = display["data_status"].map(data_status_label)
             display = display.rename(
                 columns={
@@ -1488,7 +1642,7 @@ elif page == "Data Sources":
     sources_path = DATA_DIR / "sources.csv"
     if sources_path.exists():
         with st.expander("Preview sources.csv"):
-            sources = pd.read_csv(sources_path)
+            sources = safe_read_csv(sources_path, "data/sources.csv")
             st.dataframe(sources, hide_index=True, width="stretch")
 
 
@@ -1522,3 +1676,14 @@ elif page == "About":
             "The app calculates budget per person, project budget per person, recurrent "
             "budget per person, and the percentage split between capital and recurrent budgets."
         )
+
+
+st.markdown("---")
+st.caption(
+    PUBLIC_DISCLAIMER
+    + "\n\n"
+    "© 2026 Nigeria Development Simulator. All Rights Reserved.\n\n"
+    "Original analysis, design and presentation are protected. Source data remains "
+    "the property of the original publishers.\n\n"
+    "For civic education and exploratory analysis only."
+)
