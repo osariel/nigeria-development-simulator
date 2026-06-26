@@ -121,15 +121,23 @@ st.set_page_config(
 st.markdown(
     """
     <style>
+    *, *::before, *::after {
+        box-sizing: border-box;
+    }
+
     .stApp {
         background: #f8fafc;
         color: #0f172a;
+        font-size: clamp(0.92rem, 2.5vw, 1rem);
     }
 
     .block-container {
         max-width: 760px;
-        padding-top: 1.4rem;
-        padding-bottom: 2.5rem;
+        width: 100%;
+        padding-top: clamp(0.75rem, 3vw, 1.4rem);
+        padding-bottom: clamp(1.4rem, 5vw, 2.5rem);
+        padding-left: clamp(1rem, 4vw, 2.5rem);
+        padding-right: clamp(1rem, 4vw, 2.5rem);
     }
 
     section[data-testid="stSidebar"] {
@@ -148,22 +156,41 @@ st.markdown(
     }
 
     h1 {
-        font-size: 2rem;
+        font-size: clamp(1.6rem, 5vw, 2.6rem);
         line-height: 1.15;
         letter-spacing: 0;
         color: #0f172a;
     }
 
-    h2, h3 {
+    h2 {
+        font-size: clamp(1.25rem, 4vw, 2rem);
+        line-height: 1.2;
         color: #111827;
         letter-spacing: 0;
+    }
+
+    h3 {
+        font-size: clamp(1.05rem, 3vw, 1.4rem);
+        line-height: 1.25;
+        color: #111827;
+        letter-spacing: 0;
+    }
+
+    p,
+    li,
+    label,
+    [data-testid="stMarkdownContainer"] {
+        font-size: clamp(0.92rem, 2.5vw, 1rem);
+        line-height: 1.55;
     }
 
     .hero {
         background: #ffffff;
         border: 1px solid #e2e8f0;
         border-radius: 16px;
-        padding: 1.4rem;
+        width: 100%;
+        max-width: 100%;
+        padding: clamp(1rem, 4vw, 1.4rem);
         box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
     }
 
@@ -183,28 +210,32 @@ st.markdown(
         background: #ffffff;
         border: 1px solid #e2e8f0;
         border-radius: 14px;
-        padding: 1rem;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        padding: clamp(0.85rem, 3vw, 1rem);
         margin-bottom: 0.75rem;
         box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+        overflow-wrap: anywhere;
     }
 
     .metric-label {
         color: #64748b;
-        font-size: 0.86rem;
+        font-size: clamp(0.78rem, 2.4vw, 0.86rem);
         font-weight: 700;
         margin-bottom: 0.35rem;
     }
 
     .metric-value {
         color: #0f172a;
-        font-size: 1.28rem;
+        font-size: clamp(1.02rem, 4vw, 1.28rem);
         font-weight: 800;
         line-height: 1.25;
     }
 
     .metric-help {
         color: #475569;
-        font-size: 0.9rem;
+        font-size: clamp(0.84rem, 2.4vw, 0.9rem);
         line-height: 1.45;
         margin-top: 0.4rem;
     }
@@ -214,9 +245,13 @@ st.markdown(
         background: #ffffff;
         border: 1px solid #e2e8f0;
         border-radius: 14px;
-        padding: 1rem;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        padding: clamp(0.85rem, 3vw, 1rem);
         margin-bottom: 0.8rem;
         box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+        overflow-wrap: anywhere;
     }
 
     .note-card {
@@ -230,8 +265,28 @@ st.markdown(
 
     .small-muted {
         color: #64748b;
-        font-size: 0.9rem;
+        font-size: clamp(0.84rem, 2.4vw, 0.9rem);
         line-height: 1.5;
+    }
+
+    div[data-testid="stHorizontalBlock"] {
+        gap: clamp(0.4rem, 2vw, 1rem);
+        width: 100%;
+    }
+
+    div[data-testid="column"] {
+        min-width: 0;
+    }
+
+    div[data-testid="stDataFrame"],
+    div[data-testid="stTable"] {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    div[data-testid="stDataFrame"] * {
+        max-width: 100%;
     }
 
     /* Main app widgets: keep labels readable on light backgrounds. */
@@ -257,12 +312,17 @@ st.markdown(
     section[data-testid="stMain"] input {
         color: #0f172a !important;
         background-color: #ffffff;
+        max-width: 100%;
     }
 
     .stButton button {
         background-color: #ffffff;
         color: #0f172a;
         border: 1px solid #cbd5e1;
+        min-height: 2.75rem;
+        width: 100%;
+        max-width: 100%;
+        touch-action: manipulation;
     }
 
     .stButton button p,
@@ -281,6 +341,80 @@ st.markdown(
     div[data-testid="stAlert"] li,
     div[data-testid="stAlert"] span {
         color: #422006 !important;
+    }
+
+    @media (max-width: 768px) {
+        .block-container {
+            padding-top: 0.75rem;
+            padding-bottom: 1.5rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
+        .hero {
+            border-radius: 14px;
+            padding: 1rem;
+        }
+
+        .metric-card,
+        .plain-card,
+        .note-card {
+            border-radius: 12px;
+            padding: 0.9rem;
+            margin-bottom: 0.65rem;
+        }
+
+        div[data-testid="stHorizontalBlock"] {
+            gap: 0.5rem;
+        }
+
+        div[data-testid="stVerticalBlock"] {
+            gap: 0.45rem;
+        }
+
+        section[data-testid="stMain"] [data-baseweb="select"] > div,
+        section[data-testid="stMain"] [data-baseweb="input"] > div,
+        section[data-testid="stMain"] [data-testid="stNumberInput"] input {
+            min-height: 2.75rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .block-container {
+            padding-top: 0.5rem;
+            padding-left: 0.85rem;
+            padding-right: 0.85rem;
+        }
+
+        .hero {
+            padding: 0.9rem;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+        }
+
+        h1 {
+            margin-bottom: 0.45rem;
+        }
+
+        h2,
+        h3 {
+            margin-top: 0.7rem;
+        }
+
+        .metric-card,
+        .plain-card,
+        .note-card {
+            padding: 0.85rem;
+            box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04);
+        }
+
+        .metric-value {
+            line-height: 1.2;
+        }
+
+        div[data-testid="stDataFrame"],
+        div[data-testid="stTable"] {
+            font-size: 0.86rem;
+        }
     }
     </style>
     """,
