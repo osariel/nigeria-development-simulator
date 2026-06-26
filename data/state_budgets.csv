@@ -36,11 +36,11 @@ Sokoto,2025,526900000000.0,,,,,,SRC_BUDGIT_2025_SUBNATIONAL,partial_verified_tot
 Taraba,2025,431300000000.0,,,,,,SRC_BUDGIT_2025_SUBNATIONAL,partial_verified_total,2025 total approved budget entered from comparative state budget source; detailed breakdown pending official-document extraction.
 Yobe,2025,320800000000.0,,,,,,SRC_BUDGIT_2025_SUBNATIONAL,partial_verified_total,2025 total approved budget entered from comparative state budget source; detailed breakdown pending official-document extraction.
 Zamfara,2025,546000000000.0,,,,,,SRC_BUDGIT_2025_SUBNATIONAL,partial_verified_total,2025 total approved budget entered from comparative state budget source; detailed breakdown pending official-document extraction.
-Abia,2026,,,,,,,SRC_PENDING,missing,2026 approved budget figure not yet entered.
+Abia,2026,1016000000000.0,,,,,,SRC_ABIA_2026_APPROVED,approved_total_verified,2026 signed appropriation total entered; capital/recurrent breakdown pending approved-document extraction.
 Adamawa,2026,,,,,,,SRC_PENDING,missing,2026 approved budget figure not yet entered.
 Akwa Ibom,2026,1580000000000.0,,,,,,SRC_AKWA_IBOM_2026_NEEDS_REVIEW,approved_total_needs_review,2026 total budget entered from secondary public report; needs verification against official approved budget document.
-Anambra,2026,,,,,,,SRC_PENDING,missing,2026 approved budget figure not yet entered.
-Bauchi,2026,,,,,,,SRC_PENDING,missing,2026 approved budget figure not yet entered.
+Anambra,2026,766000000000.0,,,,,,SRC_ANAMBRA_2026_APPROVED,approved_total_verified,2026 signed appropriation total entered at rounded public-reported value; exact document extraction pending.
+Bauchi,2026,877000000000.0,568300000000,308700000000,,,,SRC_BAUCHI_2026_APPROVED,verified_breakdown,2026 signed budget total and capital/recurrent split entered from public approval reports.
 Bayelsa,2026,,,,,,,SRC_PENDING,missing,2026 approved budget figure not yet entered.
 Benue,2026,,,,,,,SRC_PENDING,missing,2026 approved budget figure not yet entered.
 Borno,2026,,,,,,,SRC_PENDING,missing,2026 approved budget figure not yet entered.
@@ -52,7 +52,7 @@ Ekiti,2026,415572070139.44,,,,,,SRC_EKITI_2026_APPROVED,approved_total_verified,
 Enugu,2026,1620000000000.0,,,,,,SRC_ENUGU_2026_APPROVED_NEEDS_REVIEW,approved_total_needs_review,2026 approved budget total entered from public report/commentary; verify against official approved budget document.
 FCT,2026,,,,,,,SRC_PENDING,missing,2026 approved budget figure not yet entered.
 Gombe,2026,,,,,,,SRC_PENDING,missing,2026 approved budget figure not yet entered.
-Imo,2026,1430000000000.0,1220000000000,238499000000,,,,SRC_IMO_2026_APPROVED,verified_breakdown,2026 approved budget total and broad capital/recurrent figures entered from public assembly report; verify exact total against signed appropriation document.
+Imo,2026,1430000000000.0,1220000000000.0,238499000000.0,,,,SRC_IMO_2026_APPROVED,verified_breakdown,2026 approved budget total and broad capital/recurrent figures entered from public assembly report; verify exact total against signed appropriation document.
 Jigawa,2026,,,,,,,SRC_PENDING,missing,2026 approved budget figure not yet entered.
 Kaduna,2026,985900000000.0,,,,,,SRC_KADUNA_2026_APPROVED,approved_total_verified,2026 approved budget total entered from signed-budget report; detailed breakdown pending approved-document extraction.
 Kano,2026,1477829666130.71,,,,,,SRC_KANO_2026_APPROVED,approved_total_verified,2026 approved budget total entered; detailed breakdown pending approved-document extraction.
@@ -64,7 +64,7 @@ Lagos,2026,4440000000000.0,,,,,,SRC_LAGOS_2026_APPROVED,approved_total_verified,
 Nasarawa,2026,,,,,,,SRC_PENDING,missing,2026 approved budget figure not yet entered.
 Niger,2026,,,,,,,SRC_PENDING,missing,2026 approved budget figure not yet entered.
 Ogun,2026,1668000000000.0,,,,,,SRC_OGUN_2026_APPROVED_NEEDS_REVIEW,approved_total_needs_review,2026 total budget entered from public report; verify against approved budget PDF before detailed use.
-Ondo,2026,524410590939.0,303579649739,220830941200,,,,SRC_ONDO_2026_APPROVED,verified_breakdown,"2026 signed budget total, recurrent and capital expenditure entered from public signed-budget report."
+Ondo,2026,524410590939.0,303579649739.0,220830941200.0,,,,SRC_ONDO_2026_APPROVED,verified_breakdown,"2026 signed budget total, recurrent and capital expenditure entered from public signed-budget report."
 Osun,2026,723454988670.0,,,,,,SRC_OSUN_2026_APPROVED,approved_total_verified,2026 approved budget total entered from state/assembly approval reports; breakdown pending approved-document extraction.
 Oyo,2026,891985074480.79,,,,,,SRC_OYO_2026_APPROVED,approved_total_verified,2026 approved budget total entered from assembly approval report; detailed breakdown pending official-document extraction.
 Plateau,2026,,,,,,,SRC_PENDING,missing,2026 approved budget figure not yet entered.
