@@ -6,3 +6,13 @@ app_checkpoint_*.py
 data/*checkpoint*.csv
 data/checkpoint.csv
 .DS_Store
+.env
+*.env
+.streamlit/secrets.toml
+credentials.json
+token.json
+*.pem
+*.key
+.DS_Store
+__pycache__/
+*.pyc
