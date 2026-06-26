@@ -496,8 +496,12 @@ def data_status_label(status):
     normalized = str(status).strip().lower()
     if normalized == "verified":
         return "Verified source"
+    if normalized == "approved_total_verified":
+        return "Approved total verified"
     if normalized == "partial_verified_total":
         return "Partial verified total"
+    if normalized == "proposed_total_needs_review":
+        return "Proposed total needs review"
     if normalized in ["estimated", "estimate", "projection", "estimated/projection"]:
         return "Estimated/projection"
     return "Missing/partial"
@@ -510,11 +514,17 @@ def data_status_badge(status):
         background = "#dcfce7"
         border = "#86efac"
         color = "#166534"
-    elif normalized == "partial_verified_total":
+    elif normalized in ["approved_total_verified", "partial_verified_total"]:
         background = "#dbeafe"
         border = "#93c5fd"
         color = "#1e3a8a"
-    elif normalized in ["estimated", "estimate", "projection", "estimated/projection"]:
+    elif normalized in [
+        "estimated",
+        "estimate",
+        "projection",
+        "estimated/projection",
+        "proposed_total_needs_review",
+    ]:
         background = "#fef9c3"
         border = "#fde047"
         color = "#854d0e"
@@ -663,7 +673,10 @@ def load_states():
                 "Estimated",
                 "Estimated/projection",
                 "Missing/partial",
+                "missing",
                 "partial_verified_total",
+                "approved_total_verified",
+                "proposed_total_needs_review",
             ]
         ),
         "Missing/partial",
@@ -775,30 +788,24 @@ states, state_data_mode = load_states()
 project_costs, using_default_project_costs = load_project_costs()
 
 
-def get_state_year_selection(prefix=""):
-    state_options = states["state"].drop_duplicates().tolist()
+def year_update_note(selected_year):
+    if int(selected_year) == 2026:
+        st.info(
+            "2026 data is being added gradually. Approved totals are shown where "
+            "verified; missing values mean the approved figure has not yet been extracted."
+        )
+
+
+def get_state_year_selection(selected_year, prefix=""):
+    year_data = states[states["year"] == selected_year].copy()
+    state_options = year_data["state"].drop_duplicates().sort_values().tolist()
     selected_state = st.selectbox(
         "Choose your state",
         state_options,
         key=f"{prefix}_state",
     )
 
-    state_years = (
-        states.loc[states["state"] == selected_state, "year"]
-        .drop_duplicates()
-        .sort_values(ascending=False)
-        .tolist()
-    )
-    selected_year = st.selectbox(
-        "Choose year",
-        state_years,
-        key=f"{prefix}_year",
-    )
-
-    row = states[
-        (states["state"] == selected_state)
-        & (states["year"] == selected_year)
-    ].iloc[0]
+    row = year_data[year_data["state"] == selected_state].iloc[0]
 
     return selected_state, selected_year, row
 
@@ -868,6 +875,14 @@ st.sidebar.markdown(
     """
 )
 
+available_years = states["year"].drop_duplicates().sort_values(ascending=False).tolist()
+selected_year = st.sidebar.selectbox(
+    "Budget year",
+    available_years,
+    index=0,
+    key="global_budget_year",
+)
+
 page = st.sidebar.radio(
     "Pages",
     [
@@ -893,9 +908,10 @@ if page == "Home":
         """,
         unsafe_allow_html=True,
     )
+    year_update_note(selected_year)
 
     st.write("")
-    selected_state, selected_year, row = get_state_year_selection("home")
+    selected_state, selected_year, row = get_state_year_selection(selected_year, "home")
     data_status_badge(row["data_status"])
 
     metric_card("Total Budget", format_naira(row["annual_budget_ngn"]))
@@ -980,9 +996,12 @@ if page == "Home":
 
 elif page == "State Explorer":
     st.title("State Explorer")
-    st.write("Choose a state and year. The page explains the budget in plain English.")
+    st.write("Choose a state. The page explains the selected year's budget in plain English.")
+    year_update_note(selected_year)
 
-    selected_state, selected_year, row = get_state_year_selection("explorer")
+    selected_state, selected_year, row = get_state_year_selection(
+        selected_year, "explorer"
+    )
 
     st.markdown(f"### {selected_state}, {selected_year}")
     data_status_badge(row["data_status"])
@@ -1074,8 +1093,11 @@ elif page == "Budget Translator":
         "Turn a budget amount into rough project examples. These estimates are for "
         "understanding scale, not official promises."
     )
+    year_update_note(selected_year)
 
-    selected_state, selected_year, row = get_state_year_selection("translator")
+    selected_state, selected_year, row = get_state_year_selection(
+        selected_year, "translator"
+    )
     data_status_badge(row["data_status"])
     partial_data_caption(row)
 
@@ -1164,9 +1186,7 @@ elif page == "Compare States":
     st.title("Compare States")
     st.write("Choose the states you want to compare for the selected year.")
     st.caption("Each selected state shows its own budget data status.")
-
-    years = states["year"].drop_duplicates().sort_values(ascending=False).tolist()
-    selected_year = st.selectbox("Choose year", years, key="compare_year")
+    year_update_note(selected_year)
 
     year_data = states[states["year"] == selected_year].copy()
 
