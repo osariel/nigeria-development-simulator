@@ -111,12 +111,12 @@ DEFAULT_PROJECT_COSTS = pd.DataFrame(
 )
 
 POPULATION_ESTIMATE_NOTE = (
-    "Population values are currently prototype estimates pending replacement with "
-    "verified demographic data."
+    "Population figures are projection-based estimates, not new census counts."
 )
 
 PROJECT_COST_ESTIMATE_NOTE = (
-    "Project cost examples are illustrative estimates pending verified benchmark costs."
+    "Project costs are benchmark estimates and may vary by location, procurement "
+    "method, inflation, and project specification."
 )
 
 
@@ -497,8 +497,12 @@ def data_status_label(status):
     normalized = str(status).strip().lower()
     if normalized == "verified":
         return "Verified source"
+    if normalized == "verified_breakdown":
+        return "Verified breakdown"
     if normalized == "approved_total_verified":
         return "Approved total verified"
+    if normalized == "approved_total_needs_review":
+        return "Approved total needs review"
     if normalized == "partial_verified_total":
         return "Partial verified total"
     if normalized == "proposed_total_needs_review":
@@ -511,7 +515,7 @@ def data_status_label(status):
 def data_status_badge(status):
     label = data_status_label(status)
     normalized = str(status).strip().lower()
-    if normalized == "verified":
+    if normalized in ["verified", "verified_breakdown"]:
         background = "#dcfce7"
         border = "#86efac"
         color = "#166534"
@@ -524,6 +528,7 @@ def data_status_badge(status):
         "estimate",
         "projection",
         "estimated/projection",
+        "approved_total_needs_review",
         "proposed_total_needs_review",
     ]:
         background = "#fef9c3"
@@ -675,8 +680,10 @@ def load_states():
                 "Estimated/projection",
                 "Missing/partial",
                 "missing",
+                "verified_breakdown",
                 "partial_verified_total",
                 "approved_total_verified",
+                "approved_total_needs_review",
                 "proposed_total_needs_review",
             ]
         ),
@@ -797,6 +804,37 @@ def year_update_note(selected_year):
         )
 
 
+def data_quality_summary(year_data, selected_year):
+    total_rows = year_data["state"].nunique()
+    rows_with_budget = year_data.loc[
+        year_data["annual_budget_ngn"].notna() & (year_data["annual_budget_ngn"] > 0),
+        "state",
+    ].nunique()
+    missing_budget = max(total_rows - rows_with_budget, 0)
+
+    st.caption(
+        f"{selected_year} coverage: {rows_with_budget} states/FCT have total budget "
+        f"values; {missing_budget} are missing."
+    )
+
+    if missing_budget:
+        st.warning(
+            "Some states/FCT are still missing total budget values for this year."
+        )
+
+    status_counts = (
+        year_data["data_status"]
+        .fillna("Missing/partial")
+        .map(data_status_label)
+        .value_counts()
+        .reset_index()
+    )
+    status_counts.columns = ["Status", "Count"]
+
+    with st.expander("Data status summary"):
+        st.dataframe(status_counts, hide_index=True, width="stretch")
+
+
 def get_state_year_selection(year_data, selected_year, prefix=""):
     state_options = year_data["state"].drop_duplicates().sort_values().tolist()
     selected_state = st.selectbox(
@@ -903,6 +941,7 @@ if selected_year_data.empty:
 
 st.caption(f"Showing budget data for {selected_year}.")
 year_update_note(selected_year)
+data_quality_summary(selected_year_data, selected_year)
 
 
 if page == "Home":
@@ -1153,8 +1192,8 @@ elif page == "Budget Translator":
 
     st.markdown("### Approximate project examples")
     st.warning(
-        "Project translations are illustrative estimates only. They are not official "
-        "promises and are not verified procurement costs."
+        "Project translations use benchmark estimates only. They are not official "
+        "promises or procurement costs."
     )
 
     if not has_value(amount):
@@ -1170,8 +1209,8 @@ elif page == "Budget Translator":
             )
 
     st.caption(
-        "These translations are illustrative estimates, not official promises. Real costs "
-        "vary by location, inflation, procurement, terrain, specification and implementation quality."
+        "Project costs are benchmark estimates and may vary by location, procurement "
+        "method, inflation, and project specification."
     )
 
     with st.expander("Show project-cost assumptions"):

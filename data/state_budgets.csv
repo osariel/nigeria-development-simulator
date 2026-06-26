@@ -44,7 +44,7 @@ Bauchi,2026,877000000000.0,568300000000.0,308700000000.0,,,,SRC_BAUCHI_2026_APPR
 Bayelsa,2026,,,,,,,SRC_PENDING,missing,2026 approved budget figure not yet entered.
 Benue,2026,695010000000.0,,,,,,SRC_BENUE_2026_NEEDS_REVIEW,approved_total_needs_review,2026 approved total entered from public report on assembly budget changes; verify against signed appropriation law or approved budget document.
 Borno,2026,,,,,,,SRC_PENDING,missing,2026 approved budget figure not yet entered.
-Cross River,2026,961624047275.08,,,,,,SRC_CROSS_RIVER_2026_APPROVED,approved_total_verified,2026 approved budget total expenditure entered from Cross River approved budget PDF; detailed recurrent/capital split pending extraction.
+Cross River,2026,961624047275.08,671272468487.13,290351578787.95,122596987047.32,,53242992541.0,SRC_CROSS_RIVER_2026_APPROVED,verified_breakdown,"2026 approved budget PDF total expenditure, capital expenditure, recurrent expenditure, personnel and debt service entered; overhead/other recurrent not separately extracted."
 Delta,2026,1730000000000.0,,,,,,SRC_DELTA_2026_APPROVED,approved_total_verified,2026 approved budget total entered from public assembly approval report; detailed breakdown pending official-document extraction.
 Ebonyi,2026,,,,,,,SRC_PENDING,missing,2026 approved budget figure not yet entered.
 Edo,2026,640000000000.0,,,,,,SRC_EDO_2026_APPROVED,approved_total_verified,2026 approved budget total entered from Edo State approved budget document; detailed breakdown pending extraction.
@@ -56,13 +56,13 @@ Imo,2026,1430000000000.0,1220000000000.0,238499000000.0,,,,SRC_IMO_2026_APPROVED
 Jigawa,2026,901840000000.0,,,,,,SRC_JIGAWA_2026_APPROVED,approved_total_verified,2026 approved budget total entered from Jigawa approved budget/citizens budget and assembly approval reports; detailed breakdown pending extraction.
 Kaduna,2026,985900000000.0,,,,,,SRC_KADUNA_2026_APPROVED,approved_total_verified,2026 approved budget total entered from signed-budget report; detailed breakdown pending approved-document extraction.
 Kano,2026,1477829666130.71,,,,,,SRC_KANO_2026_APPROVED,approved_total_verified,2026 approved budget total entered; detailed breakdown pending approved-document extraction.
-Katsina,2026,897865078282.05,726301563998.14,,,,,SRC_KATSINA_2026_APPROVED,verified_breakdown,2026 approved budget total expenditure and capital expenditure entered from Katsina approved budget PDF; recurrent breakdown pending extraction.
+Katsina,2026,897865078282.05,726301563998.14,,,,,SRC_KATSINA_2026_APPROVED,approved_total_verified,2026 approved budget total expenditure and capital expenditure entered from Katsina approved budget PDF; recurrent expenditure pending extraction before verified_breakdown status.
 Kebbi,2026,642930818157.99,,,,,,SRC_KEBBI_2026_APPROVED,approved_total_verified,2026 signed budget total entered; detailed breakdown pending approved-document extraction.
 Kogi,2026,820490585443.0,455057717857,365432867586,,,,SRC_KOGI_2026_APPROVED,verified_breakdown,"2026 appropriation law total, recurrent and capital figures entered from Kogi State Appropriation Law."
 Kwara,2026,656500000000.0,,,,,,SRC_KWARA_2026_APPROVED,approved_total_verified,2026 approved budget total entered from House of Assembly approval report; detailed breakdown pending official-document extraction.
 Lagos,2026,4440000000000.0,,,,,,SRC_LAGOS_2026_APPROVED,approved_total_verified,2026 approved budget total entered; detailed breakdown pending official-document extraction.
 Nasarawa,2026,545200000000.0,,,,,,SRC_NASARAWA_2026_APPROVED,approved_total_verified,2026 budget total entered from signed/passed budget reports; detailed breakdown pending approved-document extraction.
-Niger,2026,1073991335895.0,783694704491,,,,,SRC_NIGER_2026_APPROVED,verified_breakdown,2026 approved budget total and capital expenditure entered from Niger State approved budget PDF; recurrent expenditure pending exact extraction.
+Niger,2026,1073991335895.0,783694704491,,,,,SRC_NIGER_2026_APPROVED,approved_total_verified,2026 approved budget total and capital expenditure entered from Niger State approved budget PDF; recurrent expenditure pending extraction before verified_breakdown status.
 Ogun,2026,1668000000000.0,,,,,,SRC_OGUN_2026_APPROVED_NEEDS_REVIEW,approved_total_needs_review,2026 total budget entered from public report; verify against approved budget PDF before detailed use.
 Ondo,2026,524410590939.0,303579649739.0,220830941200.0,,,,SRC_ONDO_2026_APPROVED,verified_breakdown,"2026 signed budget total, recurrent and capital expenditure entered from public signed-budget report."
 Osun,2026,723454988670.0,,,,,,SRC_OSUN_2026_APPROVED,approved_total_verified,2026 approved budget total entered from state/assembly approval reports; breakdown pending approved-document extraction.
