@@ -1,5 +1,5 @@
-sector,item,unit_cost_ngn,unit_name
-Education,Primary school block,120000000,school blocks
-Healthcare,Primary health centre,250000000,health centres
-Water,Borehole water project,15000000,boreholes
-Roads,1 km rural road,500000000,km of road
+category,item,unit,cost_ngn,source_name,source_url,notes
+Education,Primary school block,school blocks,120000000,Prototype sample values,,Illustrative estimate only
+Healthcare,Primary health centre,health centres,250000000,Prototype sample values,,Illustrative estimate only
+Water,Borehole water project,boreholes,15000000,Prototype sample values,,Illustrative estimate only
+Roads,1 km rural road,km of road,500000000,Prototype sample values,,Illustrative estimate only
