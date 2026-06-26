@@ -160,7 +160,8 @@ st.markdown(
     }
 
     section[data-testid="stSidebar"] .stMarkdown p,
-    section[data-testid="stSidebar"] [role="radiogroup"] label p {
+    section[data-testid="stSidebar"] [role="radiogroup"] label p,
+    section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {
         color: #ffffff !important;
     }
 
@@ -796,8 +797,7 @@ def year_update_note(selected_year):
         )
 
 
-def get_state_year_selection(selected_year, prefix=""):
-    year_data = states[states["year"] == selected_year].copy()
+def get_state_year_selection(year_data, selected_year, prefix=""):
     state_options = year_data["state"].drop_duplicates().sort_values().tolist()
     selected_state = st.selectbox(
         "Choose your state",
@@ -875,14 +875,6 @@ st.sidebar.markdown(
     """
 )
 
-available_years = states["year"].drop_duplicates().sort_values(ascending=False).tolist()
-selected_year = st.sidebar.selectbox(
-    "Budget year",
-    available_years,
-    index=0,
-    key="global_budget_year",
-)
-
 page = st.sidebar.radio(
     "Pages",
     [
@@ -893,6 +885,24 @@ page = st.sidebar.radio(
         "About",
     ],
 )
+
+st.sidebar.markdown("### Budget year")
+available_years = states["year"].drop_duplicates().sort_values(ascending=False).tolist()
+selected_year = st.sidebar.selectbox(
+    "Budget year",
+    available_years,
+    index=0,
+    key="global_budget_year",
+    label_visibility="collapsed",
+)
+selected_year_data = states[states["year"] == selected_year].copy()
+
+if selected_year_data.empty:
+    st.error(f"No budget rows are available for {selected_year}.")
+    st.stop()
+
+st.caption(f"Showing budget data for {selected_year}.")
+year_update_note(selected_year)
 
 
 if page == "Home":
@@ -908,10 +918,11 @@ if page == "Home":
         """,
         unsafe_allow_html=True,
     )
-    year_update_note(selected_year)
 
     st.write("")
-    selected_state, selected_year, row = get_state_year_selection(selected_year, "home")
+    selected_state, selected_year, row = get_state_year_selection(
+        selected_year_data, selected_year, "home"
+    )
     data_status_badge(row["data_status"])
 
     metric_card("Total Budget", format_naira(row["annual_budget_ngn"]))
@@ -950,7 +961,7 @@ if page == "Home":
     )
 
     st.markdown("### Current data coverage")
-    coverage_data = states[states["year"] == selected_year].copy()
+    coverage_data = selected_year_data.copy()
     total_states = coverage_data["state"].nunique()
     states_with_budget = coverage_data.loc[
         coverage_data["annual_budget_ngn"].notna()
@@ -997,10 +1008,9 @@ if page == "Home":
 elif page == "State Explorer":
     st.title("State Explorer")
     st.write("Choose a state. The page explains the selected year's budget in plain English.")
-    year_update_note(selected_year)
 
     selected_state, selected_year, row = get_state_year_selection(
-        selected_year, "explorer"
+        selected_year_data, selected_year, "explorer"
     )
 
     st.markdown(f"### {selected_state}, {selected_year}")
@@ -1093,10 +1103,9 @@ elif page == "Budget Translator":
         "Turn a budget amount into rough project examples. These estimates are for "
         "understanding scale, not official promises."
     )
-    year_update_note(selected_year)
 
     selected_state, selected_year, row = get_state_year_selection(
-        selected_year, "translator"
+        selected_year_data, selected_year, "translator"
     )
     data_status_badge(row["data_status"])
     partial_data_caption(row)
@@ -1186,9 +1195,8 @@ elif page == "Compare States":
     st.title("Compare States")
     st.write("Choose the states you want to compare for the selected year.")
     st.caption("Each selected state shows its own budget data status.")
-    year_update_note(selected_year)
 
-    year_data = states[states["year"] == selected_year].copy()
+    year_data = selected_year_data.copy()
 
     state_options = year_data["state"].sort_values().tolist()
     useful_defaults = [
