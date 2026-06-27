@@ -555,6 +555,24 @@ def project_cost_note():
     st.caption(PROJECT_COST_ESTIMATE_NOTE)
 
 
+def format_optional_text(value):
+    if pd.isna(value):
+        return "Not available yet"
+    text = str(value).strip()
+    return text if text else "Not available yet"
+
+
+def filter_state_year(dataframe, state, year):
+    if dataframe.empty:
+        return dataframe.copy()
+
+    rows = dataframe.copy()
+    return rows[
+        (rows["state"].fillna("").astype(str).str.strip() == state)
+        & (pd.to_numeric(rows["year"], errors="coerce") == int(year))
+    ].copy()
+
+
 def data_status_label(status):
     normalized = str(status).strip().lower()
     if normalized == "verified":
@@ -1137,6 +1155,7 @@ page = st.sidebar.radio(
         "State Explorer",
         "Budget Translator",
         "Compare States",
+        "Budget Insights",
         "About",
     ],
 )
@@ -1622,6 +1641,132 @@ elif page == "Compare States":
     st.info(
         "Data note: comparison rows may mix verified, estimated, and missing/partial data."
     )
+
+
+elif page == "Budget Insights":
+    st.title("Budget Insights")
+    st.write(
+        "This page summarises budget priorities, fiscal indicators, and available "
+        "outcome evidence from public budget sources."
+    )
+
+    selected_state, selected_year, _ = get_state_year_selection(
+        selected_year_data,
+        selected_year,
+        "budget_insights",
+    )
+
+    selected_insights = filter_state_year(
+        budget_insights,
+        selected_state,
+        selected_year,
+    )
+    selected_indicators = filter_state_year(
+        fiscal_indicators,
+        selected_state,
+        selected_year,
+    )
+    selected_outcomes = filter_state_year(
+        budget_outcomes,
+        selected_state,
+        selected_year,
+    )
+
+    st.info(
+        "2026 mostly shows planned priorities because implementation evidence is "
+        "not yet available. 2025 may later include observed outcomes where reliable "
+        "implementation evidence exists."
+    )
+
+    st.markdown("### Planned priorities")
+    if selected_insights.empty:
+        st.info(
+            "Budget priority extraction has not been completed for this state/year yet."
+        )
+    else:
+        display = selected_insights[
+            [
+                "sector",
+                "theme",
+                "planned_action",
+                "amount_ngn",
+                "data_status",
+            ]
+        ].copy()
+        display["sector"] = display["sector"].map(format_optional_text)
+        display["theme"] = display["theme"].map(format_optional_text)
+        display["planned_action"] = display["planned_action"].map(format_optional_text)
+        display["amount_ngn"] = display["amount_ngn"].map(format_naira)
+        display["data_status"] = display["data_status"].map(data_status_label)
+        display = display.rename(
+            columns={
+                "sector": "Sector",
+                "theme": "Theme",
+                "planned_action": "Planned action",
+                "amount_ngn": "Amount",
+                "data_status": "Data confidence",
+            }
+        )
+        st.dataframe(display, hide_index=True, width="stretch")
+
+    st.markdown("### Fiscal indicators")
+    if selected_indicators.empty:
+        st.info(
+            "Fiscal indicator extraction has not been completed for this state/year yet."
+        )
+    else:
+        display = selected_indicators[
+            [
+                "indicator",
+                "value",
+                "unit",
+                "data_status",
+            ]
+        ].copy()
+        display["indicator"] = display["indicator"].map(format_optional_text)
+        display["value"] = display["value"].map(format_optional_text)
+        display["unit"] = display["unit"].map(format_optional_text)
+        display["data_status"] = display["data_status"].map(data_status_label)
+        display = display.rename(
+            columns={
+                "indicator": "Indicator",
+                "value": "Value",
+                "unit": "Unit",
+                "data_status": "Data confidence",
+            }
+        )
+        st.dataframe(display, hide_index=True, width="stretch")
+
+    st.markdown("### Observed outcomes")
+    if selected_outcomes.empty:
+        st.info(
+            "Observed outcome evidence has not been added for this state/year yet."
+        )
+    else:
+        display = selected_outcomes[
+            [
+                "sector",
+                "outcome_metric",
+                "value",
+                "unit",
+                "data_status",
+            ]
+        ].copy()
+        display["sector"] = display["sector"].map(format_optional_text)
+        display["outcome_metric"] = display["outcome_metric"].map(format_optional_text)
+        display["value"] = display["value"].map(format_optional_text)
+        display["unit"] = display["unit"].map(format_optional_text)
+        display["data_status"] = display["data_status"].map(data_status_label)
+        display = display.rename(
+            columns={
+                "sector": "Sector",
+                "outcome_metric": "Outcome metric",
+                "value": "Value",
+                "unit": "Unit",
+                "data_status": "Data confidence",
+            }
+        )
+        st.dataframe(display, hide_index=True, width="stretch")
 
 
 # Hidden internal page: source-handling code is kept intact, but this page is
