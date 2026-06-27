@@ -159,6 +159,12 @@ PUBLIC_DISCLAIMER = (
     "financial, legal, or official government advice."
 )
 
+BUDGET_REVISION_POLICY_NOTE = (
+    "Figures show the latest revised/supplementary approved budget where available; "
+    "otherwise the original approved budget is shown. Proposed figures are clearly "
+    "marked where used."
+)
+
 
 st.set_page_config(
     page_title="Nigeria Development Simulator",
@@ -587,10 +593,14 @@ def data_status_label(status):
         return "Verified source"
     if normalized == "verified_breakdown":
         return "Verified breakdown"
+    if normalized == "revised_total_verified":
+        return "Revised budget"
+    if normalized == "revised_total_needs_review":
+        return "Revised budget, needs review"
     if normalized == "approved_total_verified":
-        return "Verified total"
+        return "Original approved budget"
     if normalized == "approved_total_needs_review":
-        return "Needs review"
+        return "Approved budget, needs review"
     if normalized == "partial_verified_total":
         return "Verified total, breakdown pending"
     if normalized == "proposed_total_needs_review":
@@ -610,14 +620,20 @@ def data_status_caption(status):
         "verified_breakdown": (
             "Total, projects and running-government figures are available from a clear source."
         ),
+        "revised_total_verified": (
+            "The latest revised or supplementary approved total is available from a clear source."
+        ),
+        "revised_total_needs_review": (
+            "A revised or supplementary total is available, but the source still needs review."
+        ),
         "approved_total_verified": (
-            "Approved total is available; detailed budget breakdown is not yet extracted."
+            "The original approved budget total is available; revised/supplementary status still depends on source extraction."
         ),
         "partial_verified_total": (
             "Total is available from a comparative source; breakdown is still pending."
         ),
         "approved_total_needs_review": (
-            "A public approved-total figure is available but still needs source review."
+            "An approved budget total is available but still needs source review."
         ),
         "proposed_total_needs_review": (
             "This appears to be a proposal or pre-final figure, not a final approved budget."
@@ -640,6 +656,10 @@ def data_status_badge(status):
         background = "#dbeafe"
         border = "#93c5fd"
         color = "#1e3a8a"
+    elif normalized == "revised_total_verified":
+        background = "#ede9fe"
+        border = "#c4b5fd"
+        color = "#4c1d95"
     elif normalized in [
         "estimated",
         "estimate",
@@ -647,6 +667,7 @@ def data_status_badge(status):
         "estimated/projection",
         "approved_total_needs_review",
         "proposed_total_needs_review",
+        "revised_total_needs_review",
     ]:
         background = "#fef9c3"
         border = "#fde047"
@@ -859,6 +880,8 @@ def load_states():
                 "Missing/partial",
                 "missing",
                 "verified_breakdown",
+                "revised_total_verified",
+                "revised_total_needs_review",
                 "partial_verified_total",
                 "approved_total_verified",
                 "approved_total_needs_review",
@@ -1016,8 +1039,9 @@ budget_insights, fiscal_indicators, budget_outcomes = load_budget_insights_data(
 def year_update_note(selected_year):
     if int(selected_year) == 2026:
         st.info(
-            "2026 data is being added gradually. Approved totals are shown where "
-            "verified; missing values mean the approved figure has not yet been extracted."
+            "2026 data is being added gradually. Revised/supplementary or original "
+            "approved totals are shown where available; missing values mean the "
+            "approved figure has not yet been extracted."
         )
 
 
@@ -1190,6 +1214,7 @@ if selected_year_data.empty:
     st.stop()
 
 st.caption(f"Showing budget data for {selected_year}.")
+st.caption(BUDGET_REVISION_POLICY_NOTE)
 year_update_note(selected_year)
 data_quality_summary(selected_year_data, selected_year)
 
