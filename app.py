@@ -69,6 +69,41 @@ LEGACY_PROJECT_COST_COLUMNS = [
     "unit_name",
 ]
 
+BUDGET_INSIGHTS_COLUMNS = [
+    "state",
+    "year",
+    "sector",
+    "theme",
+    "planned_action",
+    "amount_ngn",
+    "source_id",
+    "data_status",
+    "notes",
+]
+
+FISCAL_INDICATOR_COLUMNS = [
+    "state",
+    "year",
+    "indicator",
+    "value",
+    "unit",
+    "source_id",
+    "data_status",
+    "notes",
+]
+
+BUDGET_OUTCOME_COLUMNS = [
+    "state",
+    "year",
+    "sector",
+    "outcome_metric",
+    "value",
+    "unit",
+    "source_id",
+    "data_status",
+    "notes",
+]
+
 DEFAULT_PROJECT_COSTS = pd.DataFrame(
     [
         {
@@ -638,6 +673,25 @@ def safe_read_csv(path, file_name):
         st.stop()
 
 
+def empty_dataframe(columns):
+    return pd.DataFrame(columns=columns)
+
+
+def load_optional_csv(path, expected_columns):
+    if not path.exists():
+        return empty_dataframe(expected_columns)
+
+    try:
+        dataframe = pd.read_csv(path)
+    except Exception:
+        return empty_dataframe(expected_columns)
+
+    if not set(expected_columns).issubset(dataframe.columns):
+        return empty_dataframe(expected_columns)
+
+    return dataframe[expected_columns].copy()
+
+
 @st.cache_data
 def load_states():
     budgets_path = DATA_DIR / "state_budgets.csv"
@@ -884,8 +938,47 @@ def load_project_costs():
     return costs.reset_index(drop=True), False
 
 
+@st.cache_data
+def load_budget_insights_data():
+    budget_insights = load_optional_csv(
+        DATA_DIR / "state_budget_insights.csv",
+        BUDGET_INSIGHTS_COLUMNS,
+    )
+    fiscal_indicators = load_optional_csv(
+        DATA_DIR / "state_fiscal_indicators.csv",
+        FISCAL_INDICATOR_COLUMNS,
+    )
+    budget_outcomes = load_optional_csv(
+        DATA_DIR / "state_budget_outcomes.csv",
+        BUDGET_OUTCOME_COLUMNS,
+    )
+
+    for dataframe in [budget_insights, fiscal_indicators, budget_outcomes]:
+        if "year" in dataframe.columns:
+            dataframe["year"] = pd.to_numeric(dataframe["year"], errors="coerce")
+
+    if "amount_ngn" in budget_insights.columns:
+        budget_insights["amount_ngn"] = pd.to_numeric(
+            budget_insights["amount_ngn"],
+            errors="coerce",
+        )
+    if "value" in fiscal_indicators.columns:
+        fiscal_indicators["value"] = pd.to_numeric(
+            fiscal_indicators["value"],
+            errors="coerce",
+        )
+    if "value" in budget_outcomes.columns:
+        budget_outcomes["value"] = pd.to_numeric(
+            budget_outcomes["value"],
+            errors="coerce",
+        )
+
+    return budget_insights, fiscal_indicators, budget_outcomes
+
+
 states, state_data_mode = load_states()
 project_costs, using_default_project_costs = load_project_costs()
+budget_insights, fiscal_indicators, budget_outcomes = load_budget_insights_data()
 
 
 def year_update_note(selected_year):
@@ -1395,90 +1488,72 @@ elif page == "Compare States":
             year_data["state"].isin(selected_states)
         ].sort_values("state")
 
-        st.markdown("### Selected states")
+        st.markdown("### Budget comparison")
 
-        for _, row in comparison.iterrows():
-            status = row.get("data_status", "Missing/partial")
-            st.markdown(f"#### {row['state']}")
-            data_status_badge(status)
-            metric_card(
-                "Total Budget",
-                format_naira(row["annual_budget_ngn"]),
-                total_budget_help(row),
-            )
-            metric_card(
-                "Projects",
-                format_naira(row["capital_budget_ngn"]),
-                capital_budget_help(row),
-            )
-            metric_card(
-                "Running Government",
-                format_naira(row["recurrent_budget_ngn"]),
-                recurrent_budget_help(row),
-            )
-            metric_card(
-                "Budget per Person",
-                format_naira(row["annual_budget_per_person"]),
-                per_person_budget_help(row),
-            )
-            metric_card(
-                "Project Budget per Person",
-                format_naira(row["capital_budget_per_person"]),
-                project_per_person_budget_help(row),
-            )
-            metric_card("Project Share", format_percent(row["capital_share_percent"]))
-            partial_data_caption(row)
+        def comparison_chart(title, column, empty_message):
+            chart_data = comparison.dropna(subset=[column]).set_index("state")[[column]]
+            if chart_data.empty:
+                st.info(empty_message)
+                return
 
+            st.markdown(f"#### {title}")
+            st.bar_chart(chart_data.rename(columns={column: title}))
+
+        comparison_chart(
+            "Total budget",
+            "annual_budget_ngn",
+            "Total budget is not available for the selected states.",
+        )
+        comparison_chart(
+            "Capital budget",
+            "capital_budget_ngn",
+            "Capital budget is not available for the selected states.",
+        )
+        comparison_chart(
+            "Recurrent budget",
+            "recurrent_budget_ngn",
+            "Recurrent budget is not available for the selected states.",
+        )
+        comparison_chart(
+            "Budget per person",
+            "annual_budget_per_person",
+            "Budget per person is not available for the selected states.",
+        )
         population_note()
+        st.caption(
+            "Charts exclude states where the selected figure is not available yet. "
+            "Data confidence is shown in the table below."
+        )
 
-        st.markdown("### Project Budget per Person")
-        chart_data = comparison.dropna(
-            subset=["capital_budget_per_person"]
-        ).set_index("state")[["capital_budget_per_person"]]
-        if chart_data.empty:
-            st.info("Project budget per person is not available for the selected states.")
-        else:
-            st.bar_chart(chart_data)
-
-        with st.expander("See comparison table"):
-            display = comparison[
-                [
-                    "state",
-                    "annual_budget_ngn",
-                    "capital_budget_ngn",
-                    "recurrent_budget_ngn",
-                    "annual_budget_per_person",
-                    "capital_budget_per_person",
-                    "capital_share_percent",
-                    "data_status",
-                ]
-            ].copy()
-            display["annual_budget_ngn"] = display["annual_budget_ngn"].map(format_ngn_long)
-            display["capital_budget_ngn"] = display["capital_budget_ngn"].map(format_ngn_long)
-            display["recurrent_budget_ngn"] = display["recurrent_budget_ngn"].map(format_ngn_long)
-            display["annual_budget_per_person"] = display[
-                "annual_budget_per_person"
-            ].map(format_ngn_long)
-            display["capital_budget_per_person"] = display[
-                "capital_budget_per_person"
-            ].map(format_ngn_long)
-            display["capital_share_percent"] = display[
-                "capital_share_percent"
-            ].map(format_percent)
-            display["data_status"] = display["data_status"].map(data_status_label)
-            display = display.rename(
-                columns={
-                    "state": "State",
-                    "annual_budget_ngn": "Total Budget",
-                    "capital_budget_ngn": "Projects",
-                    "recurrent_budget_ngn": "Running Government",
-                    "annual_budget_per_person": "Budget per Person",
-                    "capital_budget_per_person": "Project Budget per Person",
-                    "capital_share_percent": "Project Share",
-                    "data_status": "Status",
-                }
-            )
-            st.dataframe(display, hide_index=True, width="stretch")
+        st.markdown("### Comparison table")
+        display = comparison[
+            [
+                "state",
+                "annual_budget_ngn",
+                "capital_budget_ngn",
+                "recurrent_budget_ngn",
+                "annual_budget_per_person",
+                "data_status",
+            ]
+        ].copy()
+        display["annual_budget_ngn"] = display["annual_budget_ngn"].map(format_naira)
+        display["capital_budget_ngn"] = display["capital_budget_ngn"].map(format_naira)
+        display["recurrent_budget_ngn"] = display["recurrent_budget_ngn"].map(format_naira)
+        display["annual_budget_per_person"] = display[
+            "annual_budget_per_person"
+        ].map(format_naira)
+        display["data_status"] = display["data_status"].map(data_status_label)
+        display = display.rename(
+            columns={
+                "state": "State",
+                "annual_budget_ngn": "Total budget",
+                "capital_budget_ngn": "Capital budget",
+                "recurrent_budget_ngn": "Recurrent budget",
+                "annual_budget_per_person": "Budget per person",
+                "data_status": "Data confidence",
+            }
+        )
+        st.dataframe(display, hide_index=True, width="stretch")
 
         if len(selected_states) == 1:
             note_card(
