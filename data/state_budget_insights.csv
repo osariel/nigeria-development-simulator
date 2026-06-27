@@ -1,0 +1,6 @@
+state,year,sector,theme,planned_action,amount_ngn,source_id,data_status,notes
+Lagos,2026,Transport,Infrastructure,,,,needs_extraction,Extract planned transport priorities from approved budget/OpenStates/BudgIT documents.
+Lagos,2026,Education,Human capital,,,,needs_extraction,Extract education priorities from approved budget/OpenStates/BudgIT documents.
+Enugu,2026,Economy,Growth,,,,needs_extraction,Extract growth and economic development priorities from approved budget/OpenStates/BudgIT documents.
+Ogun,2026,Roads,Infrastructure,,,,needs_extraction,Extract road/infrastructure priorities from approved budget/OpenStates/BudgIT documents.
+Rivers,2026,Infrastructure,Capital projects,,,,needs_extraction,Extract planned capital project priorities once approved budget evidence is confirmed.

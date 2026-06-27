@@ -1,0 +1,4 @@
+state,year,sector,outcome_metric,value,unit,source_id,data_status,notes
+Lagos,2025,Transport,implementation_evidence,,,SRC_PENDING,needs_extraction,Only enter observed outcomes where there is implementation or performance evidence.
+Ogun,2025,Roads,implementation_evidence,,,SRC_PENDING,needs_extraction,Only enter observed outcomes where there is implementation or performance evidence.
+Enugu,2025,Economy,implementation_evidence,,,SRC_PENDING,needs_extraction,Only enter observed outcomes where there is implementation or performance evidence.

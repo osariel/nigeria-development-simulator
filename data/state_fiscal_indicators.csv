@@ -1,0 +1,5 @@
+state,year,indicator,value,unit,source_id,data_status,notes
+Lagos,2025,capital_expenditure_share,,,SRC_BUDGIT_2025_APPROVED_BUDGET_ANALYSIS,needs_extraction,Extract from BudgIT 2025 approved state budget analysis.
+Lagos,2025,recurrent_expenditure_share,,,SRC_BUDGIT_2025_APPROVED_BUDGET_ANALYSIS,needs_extraction,Extract from BudgIT 2025 approved state budget analysis.
+Rivers,2025,capital_expenditure_share,,,SRC_BUDGIT_2025_APPROVED_BUDGET_ANALYSIS,needs_extraction,Extract from BudgIT 2025 approved state budget analysis.
+Kano,2025,capital_expenditure_share,,,SRC_BUDGIT_2025_APPROVED_BUDGET_ANALYSIS,needs_extraction,Extract from BudgIT 2025 approved state budget analysis.
