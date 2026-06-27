@@ -700,10 +700,27 @@ def data_status_badge(status):
 def source_caption(row):
     source_id = str(row.get("source_id", "")).strip()
     source_name = str(row.get("budget_source_name", "")).strip()
+    publisher = str(row.get("budget_source_publisher", "")).strip()
+    source_type = str(row.get("budget_source_type", "")).strip()
+    stage = data_status_label(row.get("data_status", "missing"))
+
     if source_id in ["", "SRC_PENDING", "unknown"] or not source_name:
-        st.caption("Source pending")
+        st.caption(f"Budget stage: {stage} | Source pending")
     else:
-        st.caption(f"Source: {source_name}")
+        parts = [f"Budget stage: {stage}", f"Source: {source_name}"]
+        if publisher:
+            parts.append(f"Publisher: {publisher}")
+        if source_type:
+            parts.append(f"Type: {source_type}")
+        st.caption(" | ".join(parts))
+
+
+def source_display_name(row):
+    source_id = str(row.get("source_id", "")).strip()
+    source_name = str(row.get("budget_source_name", "")).strip()
+    if source_id in ["", "SRC_PENDING", "unknown"] or not source_name:
+        return "Source pending"
+    return source_name
 
 
 def validate_columns(dataframe, required_columns, file_name):
@@ -822,9 +839,15 @@ def load_states():
         states["budget_notes"] = states["budget_notes"].fillna("")
         if sources_path.exists():
             sources = safe_read_csv(sources_path, "data/sources.csv")
-            if {"source_id", "source_name"}.issubset(sources.columns):
+            source_columns = [
+                "source_id",
+                "source_name",
+                "publisher",
+                "source_type",
+            ]
+            if set(source_columns).issubset(sources.columns):
                 source_lookup = (
-                    sources[["source_id", "source_name"]]
+                    sources[source_columns]
                     .dropna(subset=["source_id"])
                     .drop_duplicates(subset=["source_id"], keep="last")
                 )
@@ -837,11 +860,17 @@ def load_states():
                 states["budget_source_name"] = states["source_name"].fillna(
                     states["source_id"]
                 )
-                states = states.drop(columns=["source_name"])
+                states["budget_source_publisher"] = states["publisher"].fillna("")
+                states["budget_source_type"] = states["source_type"].fillna("")
+                states = states.drop(columns=["source_name", "publisher", "source_type"])
             else:
                 states["budget_source_name"] = states["source_id"].fillna("unknown")
+                states["budget_source_publisher"] = ""
+                states["budget_source_type"] = ""
         else:
             states["budget_source_name"] = states["source_id"].fillna("unknown")
+            states["budget_source_publisher"] = ""
+            states["budget_source_type"] = ""
         states["budget_source_url"] = ""
 
         data_mode = "new"
@@ -853,6 +882,8 @@ def load_states():
             states["year"] = 2025
 
         states["budget_source_name"] = "Legacy prototype states.csv"
+        states["budget_source_publisher"] = ""
+        states["budget_source_type"] = "Legacy fallback CSV"
         states["budget_source_url"] = ""
         states["budget_notes"] = (
             "Fallback prototype/sample value from data/states.csv."
@@ -1592,6 +1623,10 @@ elif page == "Compare States":
                 "recurrent_budget_ngn",
                 "annual_budget_per_person",
                 "data_status",
+                "source_id",
+                "budget_source_name",
+                "budget_source_publisher",
+                "budget_source_type",
             ]
         ].copy()
         display["annual_budget_ngn"] = display["annual_budget_ngn"].map(format_naira)
@@ -1601,6 +1636,14 @@ elif page == "Compare States":
             "annual_budget_per_person"
         ].map(format_naira)
         display["data_status"] = display["data_status"].map(data_status_label)
+        display["budget_source_name"] = display.apply(source_display_name, axis=1)
+        display["budget_source_publisher"] = display[
+            "budget_source_publisher"
+        ].map(format_optional_text)
+        display["budget_source_type"] = display["budget_source_type"].map(
+            format_optional_text
+        )
+        display = display.drop(columns=["source_id"])
         display = display.rename(
             columns={
                 "state": "State",
@@ -1609,6 +1652,9 @@ elif page == "Compare States":
                 "recurrent_budget_ngn": "Recurrent budget",
                 "annual_budget_per_person": "Budget per person",
                 "data_status": "Data confidence",
+                "budget_source_name": "Source",
+                "budget_source_publisher": "Publisher",
+                "budget_source_type": "Source type",
             }
         )
         st.dataframe(display, hide_index=True, width="stretch")
@@ -1689,11 +1735,12 @@ elif page == "Budget Insights":
         "outcome evidence from public budget sources."
     )
 
-    selected_state, selected_year, _ = get_state_year_selection(
+    selected_state, selected_year, budget_row = get_state_year_selection(
         selected_year_data,
         selected_year,
         "budget_insights",
     )
+    source_caption(budget_row)
 
     selected_insights = filter_state_year(
         budget_insights,
