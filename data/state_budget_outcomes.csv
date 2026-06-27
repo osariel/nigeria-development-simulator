@@ -1,4 +1,11 @@
 state,year,sector,outcome_metric,value,unit,source_id,data_status,notes
-Lagos,2025,Transport,implementation_evidence,,,SRC_PENDING,needs_extraction,Only enter observed outcomes where there is implementation or performance evidence.
-Ogun,2025,Roads,implementation_evidence,,,SRC_PENDING,needs_extraction,Only enter observed outcomes where there is implementation or performance evidence.
-Enugu,2025,Economy,implementation_evidence,,,SRC_PENDING,needs_extraction,Only enter observed outcomes where there is implementation or performance evidence.
+Lagos,2025,Budget-wide,implementation_evidence,,,SRC_PENDING,needs_extraction,No observed outcome row entered yet; only add outcomes from implementation reports project trackers performance reports or credible public records.
+Rivers,2025,Budget-wide,implementation_evidence,,,SRC_PENDING,needs_extraction,No observed outcome row entered yet; only add outcomes from implementation reports project trackers performance reports or credible public records.
+Ogun,2025,Budget-wide,implementation_evidence,,,SRC_PENDING,needs_extraction,No observed outcome row entered yet; only add outcomes from implementation reports project trackers performance reports or credible public records.
+Niger,2025,Budget-wide,implementation_evidence,,,SRC_PENDING,needs_extraction,No observed outcome row entered yet; only add outcomes from implementation reports project trackers performance reports or credible public records.
+Enugu,2025,Budget-wide,implementation_evidence,,,SRC_PENDING,needs_extraction,No observed outcome row entered yet; only add outcomes from implementation reports project trackers performance reports or credible public records.
+Kano,2025,Budget-wide,implementation_evidence,,,SRC_PENDING,needs_extraction,No observed outcome row entered yet; only add outcomes from implementation reports project trackers performance reports or credible public records.
+Kaduna,2025,Budget-wide,implementation_evidence,,,SRC_PENDING,needs_extraction,No observed outcome row entered yet; only add outcomes from implementation reports project trackers performance reports or credible public records.
+Akwa Ibom,2025,Budget-wide,implementation_evidence,,,SRC_PENDING,needs_extraction,No observed outcome row entered yet; only add outcomes from implementation reports project trackers performance reports or credible public records.
+Oyo,2025,Budget-wide,implementation_evidence,,,SRC_PENDING,needs_extraction,No observed outcome row entered yet; only add outcomes from implementation reports project trackers performance reports or credible public records.
+Edo,2025,Budget-wide,implementation_evidence,,,SRC_PENDING,needs_extraction,No observed outcome row entered yet; only add outcomes from implementation reports project trackers performance reports or credible public records.

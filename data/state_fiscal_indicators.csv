@@ -1,4 +1,14 @@
 state,year,indicator,value,unit,source_id,data_status,notes
+Lagos,2025,total_approved_budget,3370000000000,NGN,SRC_BUDGIT_2025_APPROVED_BUDGET_ANALYSIS,needs_review,Explicit 2025 approved total from BudgIT comparative analysis; verify against approved budget document before marking verified.
+Rivers,2025,total_approved_budget,1190000000000,NGN,SRC_BUDGIT_2025_APPROVED_BUDGET_ANALYSIS,needs_review,Explicit 2025 approved total from BudgIT comparative analysis; verify against approved budget document before marking verified.
+Ogun,2025,total_approved_budget,1050000000000,NGN,SRC_BUDGIT_2025_APPROVED_BUDGET_ANALYSIS,needs_review,Explicit 2025 approved total from BudgIT comparative analysis; verify against approved budget document before marking verified.
+Niger,2025,total_approved_budget,1560000000000,NGN,SRC_BUDGIT_2025_APPROVED_BUDGET_ANALYSIS,needs_review,Explicit 2025 approved total from BudgIT comparative analysis; verify against approved budget document before marking verified.
+Enugu,2025,total_approved_budget,971000000000,NGN,SRC_BUDGIT_2025_APPROVED_BUDGET_ANALYSIS,needs_review,Explicit 2025 approved total from BudgIT comparative analysis; verify against approved budget document before marking verified.
+Kano,2025,total_approved_budget,719700000000,NGN,SRC_BUDGIT_2025_APPROVED_BUDGET_ANALYSIS,needs_review,Explicit 2025 approved total from BudgIT comparative analysis; verify against approved budget document before marking verified.
+Kaduna,2025,total_approved_budget,790000000000,NGN,SRC_BUDGIT_2025_APPROVED_BUDGET_ANALYSIS,needs_review,Explicit 2025 approved total from BudgIT comparative analysis; verify against approved budget document before marking verified.
+Akwa Ibom,2025,total_approved_budget,955000000000,NGN,SRC_BUDGIT_2025_APPROVED_BUDGET_ANALYSIS,needs_review,Explicit 2025 approved total from BudgIT comparative analysis; verify against approved budget document before marking verified.
+Oyo,2025,total_approved_budget,684000000000,NGN,SRC_BUDGIT_2025_APPROVED_BUDGET_ANALYSIS,needs_review,Explicit 2025 approved total from BudgIT comparative analysis; verify against approved budget document before marking verified.
+Edo,2025,total_approved_budget,675000000000,NGN,SRC_BUDGIT_2025_APPROVED_BUDGET_ANALYSIS,needs_review,Explicit 2025 approved total from BudgIT comparative analysis; verify against approved budget document before marking verified.
 Lagos,2025,capital_expenditure_share,,,SRC_BUDGIT_2025_APPROVED_BUDGET_ANALYSIS,needs_extraction,Extract from BudgIT 2025 approved state budget analysis.
 Lagos,2025,recurrent_expenditure_share,,,SRC_BUDGIT_2025_APPROVED_BUDGET_ANALYSIS,needs_extraction,Extract from BudgIT 2025 approved state budget analysis.
 Rivers,2025,capital_expenditure_share,,,SRC_BUDGIT_2025_APPROVED_BUDGET_ANALYSIS,needs_extraction,Extract from BudgIT 2025 approved state budget analysis.

@@ -573,6 +573,14 @@ def filter_state_year(dataframe, state, year):
     ].copy()
 
 
+def format_indicator_value(row):
+    unit = str(row.get("unit", "")).strip().upper()
+    value = row.get("value")
+    if unit == "NGN":
+        return format_naira(value)
+    return format_optional_text(value)
+
+
 def data_status_label(status):
     normalized = str(status).strip().lower()
     if normalized == "verified":
@@ -587,6 +595,10 @@ def data_status_label(status):
         return "Verified total, breakdown pending"
     if normalized == "proposed_total_needs_review":
         return "Proposed / not final"
+    if normalized == "needs_review":
+        return "Needs review"
+    if normalized == "needs_extraction":
+        return "Needs extraction"
     if normalized in ["estimated", "estimate", "projection", "estimated/projection"]:
         return "Estimated/projection"
     return "Not available yet"
@@ -610,6 +622,8 @@ def data_status_caption(status):
         "proposed_total_needs_review": (
             "This appears to be a proposal or pre-final figure, not a final approved budget."
         ),
+        "needs_review": "A source has been identified, but the figure still needs review.",
+        "needs_extraction": "The source has been identified, but detailed extraction is still pending.",
         "missing": "The budget figure has not yet been entered for this state/year.",
     }
     return captions.get(normalized, "Use this badge as a quick guide to data confidence.")
@@ -1724,7 +1738,7 @@ elif page == "Budget Insights":
             ]
         ].copy()
         display["indicator"] = display["indicator"].map(format_optional_text)
-        display["value"] = display["value"].map(format_optional_text)
+        display["value"] = display.apply(format_indicator_value, axis=1)
         display["unit"] = display["unit"].map(format_optional_text)
         display["data_status"] = display["data_status"].map(data_status_label)
         display = display.rename(
