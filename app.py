@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -155,7 +156,7 @@ PROJECT_COST_ESTIMATE_NOTE = (
 )
 
 PUBLIC_DISCLAIMER = (
-    "This tool is for civic education and exploratory analysis. It does not provide "
+    "For civic education and exploratory analysis. This tool does not provide "
     "financial, legal, or official government advice."
 )
 
@@ -275,6 +276,20 @@ st.markdown(
         overflow-wrap: anywhere;
     }
 
+    .project-result-card {
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-left: 5px solid #1f7a5c;
+        border-radius: 14px;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        padding: clamp(1rem, 3.5vw, 1.2rem);
+        margin-bottom: 0.85rem;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+        overflow-wrap: anywhere;
+    }
+
     .metric-label {
         color: #64748b;
         font-size: clamp(0.78rem, 2.4vw, 0.86rem);
@@ -294,6 +309,15 @@ st.markdown(
         font-size: clamp(0.84rem, 2.4vw, 0.9rem);
         line-height: 1.45;
         margin-top: 0.4rem;
+    }
+
+    .project-result-card .metric-label {
+        color: #166534;
+    }
+
+    .project-result-card .metric-value {
+        color: #0f172a;
+        font-size: clamp(1.25rem, 5vw, 1.65rem);
     }
 
     .plain-card,
@@ -542,6 +566,20 @@ def metric_card(label, value, help_text=None):
     )
 
 
+def project_result_card(label, value, help_text=None):
+    help_markup = f'<div class="metric-help">{help_text}</div>' if help_text else ""
+    st.markdown(
+        f"""
+        <div class="project-result-card">
+            <div class="metric-label">{label}</div>
+            <div class="metric-value">{value}</div>
+            {help_markup}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def note_card(text):
     st.markdown(
         f"""
@@ -562,7 +600,7 @@ def project_cost_note():
 
 
 def budget_101():
-    with st.expander("Budget 101"):
+    with st.expander("Budget 101: what these words mean"):
         st.write(
             "Total budget is the full amount the state plans to spend in the selected year."
         )
@@ -615,11 +653,11 @@ def data_status_label(status):
     if normalized == "revised_total_verified":
         return "Revised budget"
     if normalized == "revised_total_needs_review":
-        return "Revised budget, needs checking"
+        return "Revised budget, source check pending"
     if normalized == "approved_total_verified":
         return "Original approved budget"
     if normalized == "approved_total_needs_review":
-        return "Needs checking"
+        return "Source check pending"
     if normalized == "partial_verified_total":
         return "Verified total, breakdown pending"
     if normalized == "proposed_total_needs_review":
@@ -643,7 +681,7 @@ def data_status_caption(status):
             "The latest revised or supplementary approved total is available from a clear source."
         ),
         "revised_total_needs_review": (
-            "A revised or supplementary total is available, but the source still needs review."
+            "This figure is from a public source and is being checked against official budget documents."
         ),
         "approved_total_verified": (
             "The original approved budget total is available; revised/supplementary status still depends on source extraction."
@@ -652,7 +690,7 @@ def data_status_caption(status):
             "Total is available from a comparative source; breakdown is still pending."
         ),
         "approved_total_needs_review": (
-            "An approved budget total is available but still needs source review."
+            "This figure is from a public source and is being checked against official budget documents."
         ),
         "proposed_total_needs_review": (
             "This appears to be a proposal or pre-final figure, not a final approved budget."
@@ -1095,6 +1133,13 @@ def year_update_note(selected_year):
         )
 
 
+def year_data_notes(selected_year):
+    with st.expander("Data notes for this year"):
+        st.caption(f"Showing budget data for {selected_year}.")
+        st.caption(BUDGET_REVISION_POLICY_NOTE)
+        year_update_note(selected_year)
+
+
 def data_quality_summary(year_data, selected_year):
     total_rows = year_data["state"].nunique()
     rows_with_budget = year_data.loc[
@@ -1103,36 +1148,51 @@ def data_quality_summary(year_data, selected_year):
     ].nunique()
     missing_budget = max(total_rows - rows_with_budget, 0)
 
-    st.caption(
-        f"{selected_year} coverage: {rows_with_budget} states/FCT have total budget "
-        f"values; {missing_budget} are missing."
-    )
-
-    if missing_budget:
-        st.warning(
-            "Some states/FCT are still missing total budget values for this year."
+    with st.expander("See data coverage"):
+        st.caption(
+            f"For {selected_year}, {rows_with_budget} states/FCT have budget figures "
+            f"available and {missing_budget} are not available yet."
         )
+        metric_card("States in dataset", format_number(total_rows))
+        metric_card("States with budget figures", format_number(rows_with_budget))
 
-    status_counts = (
-        year_data["data_status"]
-        .fillna("Missing/partial")
-        .map(data_status_label)
-        .value_counts()
-        .reset_index()
-    )
-    status_counts.columns = ["Status", "Count"]
+        if missing_budget:
+            missing_states = (
+                year_data.loc[
+                    year_data["annual_budget_ngn"].isna()
+                    | (year_data["annual_budget_ngn"] <= 0),
+                    "state",
+                ]
+                .dropna()
+                .astype(str)
+                .sort_values()
+                .tolist()
+            )
+            st.warning(
+                "Some states/FCT are still missing budget figures for this year."
+            )
+            st.caption("States where budget figures are not available yet:")
+            st.write(", ".join(missing_states))
+        else:
+            st.caption("All states/FCT for this year currently have budget figures.")
 
-    with st.expander("Data status summary"):
+        status_counts = (
+            year_data["data_status"]
+            .fillna("Missing/partial")
+            .map(data_status_label)
+            .value_counts()
+            .reset_index()
+        )
+        status_counts.columns = ["Status", "Count"]
+        st.caption("Source status summary")
         st.dataframe(status_counts, hide_index=True, width="stretch")
 
 
 def get_state_year_selection(year_data, selected_year, prefix=""):
     state_options = year_data["state"].drop_duplicates().sort_values().tolist()
-    selected_state = st.selectbox(
-        "Choose your state",
-        state_options,
-        key=f"{prefix}_state",
-    )
+    selected_state = st.session_state.get("selected_state")
+    if selected_state not in state_options:
+        selected_state = state_options[0]
 
     row = year_data[year_data["state"] == selected_state].iloc[0]
 
@@ -1143,10 +1203,14 @@ def budget_breakdown_text(row):
     capital = row["capital_share_percent"]
     recurrent = row["recurrent_share_percent"]
     if pd.isna(capital) or pd.isna(recurrent):
-        return (
-            "The split between projects and running government is not fully available "
-            "for this row."
-        )
+        state = format_optional_text(row.get("state"))
+        year = format_optional_text(row.get("year"))
+        if has_value(row.get("annual_budget_ngn")):
+            return (
+                f"For {state} in {year}, we have the total budget, but not yet "
+                "the full breakdown between projects and day-to-day government costs."
+            )
+        return f"For {state} in {year}, the budget figure is not available yet."
     return (
         f"For every ₦100 in the budget, about ₦{capital:.0f} goes to "
         f"projects and development, while about ₦{recurrent:.0f} goes to "
@@ -1173,7 +1237,130 @@ def budget_split_chart(row):
         st.info("The projects/running-government split is not available yet.")
         return
 
-    st.bar_chart(split_data.set_index("Category")[["Amount"]])
+    chart = (
+        alt.Chart(split_data)
+        .mark_bar(cornerRadiusEnd=4, color="#1f7a5c")
+        .encode(
+            y=alt.Y(
+                "Category:N",
+                sort="-x",
+                title=None,
+                axis=alt.Axis(labelLimit=220, labelFontSize=13),
+            ),
+            x=alt.X(
+                "Amount:Q",
+                title="Amount",
+                axis=naira_axis(),
+            ),
+            tooltip=[
+                alt.Tooltip("Category:N", title="Category"),
+                alt.Tooltip("AmountLabel:N", title="Amount"),
+            ],
+        )
+        .transform_calculate(
+            AmountLabel=(
+                "datum.Amount >= 1000000000000 ? '₦' + format(datum.Amount / 1000000000000, '.2f') + 'tn' : "
+                "datum.Amount >= 1000000000 ? '₦' + format(datum.Amount / 1000000000, '.2f') + 'bn' : "
+                "datum.Amount >= 1000000 ? '₦' + format(datum.Amount / 1000000, '.2f') + 'm' : "
+                "'₦' + format(datum.Amount, ',.0f')"
+            )
+        )
+        .properties(height=220)
+    )
+    st.altair_chart(chart, width="stretch")
+
+
+def naira_axis():
+    return alt.Axis(
+        labelExpr=(
+            "datum.value >= 1000000000000 ? '₦' + format(datum.value / 1000000000000, '.0f') + 'tn' : "
+            "datum.value >= 1000000000 ? '₦' + format(datum.value / 1000000000, '.0f') + 'bn' : "
+            "datum.value >= 1000000 ? '₦' + format(datum.value / 1000000, '.0f') + 'm' : "
+            "'₦' + format(datum.value, ',.0f')"
+        ),
+        labelFontSize=12,
+    )
+
+
+def horizontal_budget_chart(data, value_column, title, status_column=None):
+    chart_data = data[["state", value_column] + ([status_column] if status_column else [])].copy()
+    chart_data = chart_data.dropna(subset=[value_column])
+    if chart_data.empty:
+        return None
+
+    chart_data["Formatted value"] = chart_data[value_column].map(format_naira)
+    if status_column:
+        chart_data["Data confidence"] = chart_data[status_column].map(data_status_label)
+
+    chart_height = max(240, min(520, 42 * len(chart_data)))
+    tooltips = [
+        alt.Tooltip("state:N", title="State"),
+        alt.Tooltip("Formatted value:N", title=title),
+    ]
+    if status_column:
+        tooltips.append(alt.Tooltip("Data confidence:N", title="Data confidence"))
+
+    return (
+        alt.Chart(chart_data)
+        .mark_bar(cornerRadiusEnd=4, color="#1f7a5c")
+        .encode(
+            y=alt.Y(
+                "state:N",
+                sort="-x",
+                title=None,
+                axis=alt.Axis(labelLimit=180, labelFontSize=13),
+            ),
+            x=alt.X(
+                f"{value_column}:Q",
+                title=title,
+                axis=naira_axis(),
+            ),
+            tooltip=tooltips,
+        )
+        .properties(height=chart_height)
+    )
+
+
+def ranking_bar_chart(ranked, ranking_column, selected_ranking):
+    chart_data = ranked[["state", ranking_column, "data_status"]].copy()
+    chart_data["Formatted value"] = (
+        chart_data[ranking_column].map(format_percent)
+        if ranking_column == "capital_share_percent"
+        else chart_data[ranking_column].map(format_naira)
+    )
+    chart_data["Data confidence"] = chart_data["data_status"].map(data_status_label)
+    chart_height = max(260, min(520, 42 * len(chart_data)))
+
+    value_axis = (
+        alt.Axis(labelExpr="format(datum.value, '.0f') + '%'", labelFontSize=12)
+        if ranking_column == "capital_share_percent"
+        else naira_axis()
+    )
+
+    chart = (
+        alt.Chart(chart_data)
+        .mark_bar(cornerRadiusEnd=4, color="#1f7a5c")
+        .encode(
+            y=alt.Y(
+                "state:N",
+                sort="-x",
+                title=None,
+                axis=alt.Axis(labelLimit=180, labelFontSize=13),
+            ),
+            x=alt.X(
+                f"{ranking_column}:Q",
+                title=selected_ranking,
+                axis=value_axis,
+            ),
+            tooltip=[
+                alt.Tooltip("state:N", title="State"),
+                alt.Tooltip("Formatted value:N", title=selected_ranking),
+                alt.Tooltip("Data confidence:N", title="Data confidence"),
+            ],
+        )
+        .properties(height=chart_height)
+    )
+    st.altair_chart(chart, width="stretch")
 
 
 def partial_data_caption(row):
@@ -1193,7 +1380,7 @@ def partial_data_caption(row):
         st.caption(
             "Partial data: "
             + ", ".join(missing)
-            + " not available for this row."
+            + " not available for this state/year."
         )
 
 
@@ -1250,6 +1437,19 @@ def project_translation(amount, costs):
     return rows
 
 
+def public_project_label(item):
+    item_text = str(item).lower()
+    if "school" in item_text:
+        return "Schools"
+    if "health" in item_text or "hospital" in item_text or "clinic" in item_text:
+        return "Health centres"
+    if "borehole" in item_text or "water" in item_text:
+        return "Boreholes"
+    if "road" in item_text:
+        return "Roads"
+    return str(item).title()
+
+
 st.sidebar.markdown(
     """
     # Nigeria Budget
@@ -1263,10 +1463,10 @@ page = st.sidebar.radio(
     [
         "Home",
         "My State",
-        "Where The Money Goes",
         "What Could This Build?",
         "Compare States",
         "Rankings",
+        "Where The Money Goes",
         "About",
     ],
 )
@@ -1280,17 +1480,25 @@ selected_year = st.sidebar.selectbox(
     key="global_budget_year",
     label_visibility="collapsed",
 )
+st.session_state["selected_year"] = selected_year
 selected_year_data = states[states["year"] == selected_year].copy()
 
 if selected_year_data.empty:
     st.error(f"No budget rows are available for {selected_year}.")
     st.stop()
 
-st.caption(f"Showing budget data for {selected_year}.")
-st.caption(BUDGET_REVISION_POLICY_NOTE)
-year_update_note(selected_year)
-data_quality_summary(selected_year_data, selected_year)
+st.sidebar.markdown("### State")
+global_state_options = selected_year_data["state"].drop_duplicates().sort_values().tolist()
+preferred_state = st.session_state.get("selected_state")
+if preferred_state not in global_state_options:
+    preferred_state = "Lagos" if "Lagos" in global_state_options else global_state_options[0]
 
+st.sidebar.selectbox(
+    "State",
+    global_state_options,
+    index=global_state_options.index(preferred_state),
+    key="selected_state",
+)
 
 if page == "Home":
     st.markdown(
@@ -1310,24 +1518,16 @@ if page == "Home":
     selected_state, selected_year, row = get_state_year_selection(
         selected_year_data, selected_year, "home"
     )
-    data_status_badge(row["data_status"])
 
+    st.markdown(f"### {selected_state}, {selected_year}")
     metric_card(
         "Total Budget",
         format_naira(row["annual_budget_ngn"]),
-        total_budget_help(row),
     )
     metric_card(
         "Budget per Resident",
         format_naira(row["annual_budget_per_person"]),
-        per_person_budget_help(row),
     )
-    population_note()
-
-    note_card(
-        f"{selected_state} in {selected_year}: {budget_breakdown_text(row)}"
-    )
-    partial_data_caption(row)
 
     st.markdown("### What you can do")
     metric_card(
@@ -1346,62 +1546,13 @@ if page == "Home":
         "Use simple project-cost assumptions to understand the scale of a budget.",
     )
 
-    budget_101()
-
-    st.info(
-        "Data note: use the badge above to see whether the selected figures are verified, "
-        "estimated, or missing/partial."
-    )
-
-    st.markdown("### Current data coverage")
-    coverage_data = selected_year_data.copy()
-    total_states = coverage_data["state"].nunique()
-    states_with_budget = coverage_data.loc[
-        coverage_data["annual_budget_ngn"].notna()
-        & (coverage_data["annual_budget_ngn"] > 0),
-        "state",
-    ].nunique()
-    states_with_population = coverage_data.loc[
-        coverage_data["population"].notna() & (coverage_data["population"] > 0),
-        "state",
-    ].nunique()
-    states_with_both = coverage_data.loc[
-        coverage_data["annual_budget_ngn"].notna()
-        & (coverage_data["annual_budget_ngn"] > 0)
-        & coverage_data["population"].notna()
-        & (coverage_data["population"] > 0),
-        "state",
-    ].nunique()
-
-    metric_card("States in dataset", format_number(total_states))
-    metric_card("States with total budget", format_number(states_with_budget))
-    metric_card("States with population", format_number(states_with_population))
-    metric_card("States with both", format_number(states_with_both))
-
-    missing_budget = coverage_data[
-        coverage_data["annual_budget_ngn"].isna()
-        | (coverage_data["annual_budget_ngn"] <= 0)
-    ][["state", "year", "data_status", "budget_notes"]].copy()
-
-    with st.expander("See detailed data"):
-        if missing_budget.empty:
-            st.caption("All states for this year currently have a total budget value.")
-        else:
-            missing_budget = missing_budget.rename(
-                columns={
-                    "state": "State",
-                    "year": "Year",
-                    "data_status": "Status",
-                    "budget_notes": "Notes",
-                }
-            )
-            st.caption("States where total_budget_ngn is missing:")
-            st.dataframe(missing_budget, hide_index=True, width="stretch")
+    data_quality_summary(selected_year_data, selected_year)
+    year_data_notes(selected_year)
 
 
 elif page == "My State":
     st.title("My State")
-    st.write("Choose your state and see the selected year's budget in plain English.")
+    st.write("Start here: choose your state and see the selected year's budget in plain English.")
 
     selected_state, selected_year, row = get_state_year_selection(
         selected_year_data, selected_year, "explorer"
@@ -1409,48 +1560,52 @@ elif page == "My State":
 
     st.markdown(f"### {selected_state}, {selected_year}")
     data_status_badge(row["data_status"])
-    source_caption(row)
 
-    metric_card(
-        "Total Budget",
-        format_naira(row["annual_budget_ngn"]),
-        total_budget_help(row),
-    )
+    if has_value(row["annual_budget_ngn"]):
+        metric_card(
+            "Total Budget",
+            format_naira(row["annual_budget_ngn"]),
+            total_budget_help(row),
+        )
+    if has_value(row["population"]):
+        metric_card("Population", format_number(row["population"]))
+    if has_value(row["annual_budget_per_person"]):
+        metric_card(
+            "Budget per Resident",
+            format_naira(row["annual_budget_per_person"]),
+            per_person_budget_help(row),
+        )
+        population_note()
+
+    if has_value(row["capital_budget_ngn"]):
+        metric_card(
+            "Projects and Development",
+            format_naira(row["capital_budget_ngn"]),
+            capital_budget_help(row),
+        )
+    if has_value(row["recurrent_budget_ngn"]):
+        metric_card(
+            "Running Government",
+            format_naira(row["recurrent_budget_ngn"]),
+            recurrent_budget_help(row),
+        )
+    if has_value(row["capital_budget_per_person"]):
+        metric_card(
+            "Project Budget per Resident",
+            format_naira(row["capital_budget_per_person"]),
+            project_per_person_budget_help(row),
+        )
+
+    if has_budget_breakdown(row):
+        st.markdown("### Where the money goes")
+        budget_split_chart(row)
+        metric_card("For every ₦100", budget_breakdown_text(row))
+
+    st.markdown("### What this means")
     if not has_budget_breakdown(row):
-        st.info("Breakdown not yet available for this state.")
-    metric_card(
-        "Projects and Development",
-        format_naira(row["capital_budget_ngn"]),
-        capital_budget_help(row),
-    )
-    metric_card(
-        "Running Government",
-        format_naira(row["recurrent_budget_ngn"]),
-        recurrent_budget_help(row),
-    )
-    metric_card("Population", format_number(row["population"]))
-    metric_card(
-        "Budget per Resident",
-        format_naira(row["annual_budget_per_person"]),
-        per_person_budget_help(row),
-    )
-    metric_card(
-        "Project Budget per Resident",
-        format_naira(row["capital_budget_per_person"]),
-        project_per_person_budget_help(row),
-    )
-    population_note()
-    metric_card("For every ₦100", budget_breakdown_text(row))
-    partial_data_caption(row)
-
-    st.markdown("### Where the money goes")
-    budget_split_chart(row)
-
-    st.markdown("### Simple explanation")
-    if not has_budget_breakdown(row) and has_value(row["annual_budget_ngn"]):
         note_card(
-            f"{selected_state}'s total budget is {format_ngn_long(row['annual_budget_ngn'])}. "
-            "The detailed split between projects and running government is not yet available."
+            f"We have the total budget for {selected_state} in {selected_year}, but "
+            "the split between project spending and day-to-day running costs has not yet been added."
         )
     else:
         note_card(
@@ -1461,64 +1616,62 @@ elif page == "My State":
 
     budget_101()
 
+    with st.expander("See source details"):
+        source_caption(row)
+
     with st.expander("See detailed data"):
-        detail_data = pd.DataFrame(
-            [
-                {
-                    "Label": "Annual budget per resident",
-                    "Value": format_ngn_long(row["annual_budget_per_person"]),
-                },
-                {
-                    "Label": "Capital/project budget per resident",
-                    "Value": format_ngn_long(row["capital_budget_per_person"]),
-                },
-                {
-                    "Label": "Recurrent/running government per resident",
-                    "Value": format_ngn_long(row["recurrent_budget_per_person"]),
-                },
-                {
-                    "Label": "Projects and development share",
-                    "Value": format_percent(row["capital_share_percent"]),
-                },
-                {
-                    "Label": "Running government share",
-                    "Value": format_percent(row["recurrent_share_percent"]),
-                },
-                {
-                    "Label": "Budget source",
-                    "Value": row["budget_source_name"],
-                },
-                {
-                    "Label": "Budget data status",
-                    "Value": data_status_label(row["data_status"]),
-                },
-                {
-                    "Label": "Population source",
-                    "Value": row["population_source_name"],
-                },
-            ]
-        )
+        details = [
+            {
+                "Label": "Annual budget per resident",
+                "Value": format_ngn_long(row["annual_budget_per_person"]),
+            },
+            {
+                "Label": "Budget data status",
+                "Value": data_status_label(row["data_status"]),
+            },
+            {
+                "Label": "Population source",
+                "Value": row["population_source_name"],
+            },
+        ]
+        if has_budget_breakdown(row):
+            details.extend(
+                [
+                    {
+                        "Label": "Capital/project budget per resident",
+                        "Value": format_ngn_long(row["capital_budget_per_person"]),
+                    },
+                    {
+                        "Label": "Recurrent/running government per resident",
+                        "Value": format_ngn_long(row["recurrent_budget_per_person"]),
+                    },
+                    {
+                        "Label": "Projects and development share",
+                        "Value": format_percent(row["capital_share_percent"]),
+                    },
+                    {
+                        "Label": "Running government share",
+                        "Value": format_percent(row["recurrent_share_percent"]),
+                    },
+                ]
+            )
+        detail_data = pd.DataFrame(details)
         st.dataframe(detail_data, hide_index=True, width="stretch")
 
-    st.info(
-        "Data note: use the badge above to see whether these figures are verified, "
-        "estimated, or missing/partial."
-    )
+    year_data_notes(selected_year)
 
 
 elif page == "What Could This Build?":
     st.title("What Could This Build?")
     st.write(
-        "Turn a budget amount into simple project examples. These estimates are for "
-        "understanding scale, not official promises."
+        "Budgets are huge numbers. This page translates them into everyday projects "
+        "so you can understand their scale."
     )
 
     selected_state, selected_year, row = get_state_year_selection(
         selected_year_data, selected_year, "translator"
     )
-    data_status_badge(row["data_status"])
-    source_caption(row)
-    partial_data_caption(row)
+    st.markdown(f"### {selected_state}, {selected_year}")
 
     amount_source = st.radio(
         "What amount should we translate?",
@@ -1553,19 +1706,8 @@ elif page == "What Could This Build?":
         )
 
     metric_card("Amount to Translate", format_naira(amount))
-    project_cost_note()
-
-    if using_default_project_costs:
-        st.warning(
-            "data/project_costs.csv is missing or incomplete, so the app is using safe "
-            "default illustrative assumptions."
-        )
 
     st.markdown("### Approximate project examples")
-    st.warning(
-        "Project translations use benchmark estimates only. They are not official "
-        "promises or procurement costs."
-    )
 
     if not has_value(amount):
         st.info("This amount is not available for the selected state and year.")
@@ -1573,16 +1715,28 @@ elif page == "What Could This Build?":
         st.info("Enter an amount greater than zero to see project examples.")
     else:
         for project in project_translation(amount, project_costs):
-            metric_card(
-                project["item"],
+            project_result_card(
+                public_project_label(project["item"]),
                 f"{project['units']:,.1f} {project['unit_name']}",
                 f"Assumed unit cost: {format_ngn_long(project['unit_cost'])}",
             )
 
-    st.caption(
-        "Project costs are benchmark estimates and may vary by location, procurement "
-        "method, inflation, and project specification."
-    )
+    with st.expander("Important note about these estimates"):
+        st.write(
+            "Project translations use benchmark estimates only. They are not official "
+            "promises or procurement costs."
+        )
+        project_cost_note()
+        if using_default_project_costs:
+            st.warning(
+                "data/project_costs.csv is missing or incomplete, so the app is using safe "
+                "default illustrative assumptions."
+            )
+
+    with st.expander("See source details"):
+        data_status_badge(row["data_status"])
+        source_caption(row)
+        partial_data_caption(row)
 
     with st.expander("See detailed data"):
         assumptions = project_costs.copy()
@@ -1600,6 +1754,8 @@ elif page == "What Could This Build?":
         assumptions = assumptions.drop(columns=["source_url"], errors="ignore")
         st.dataframe(assumptions, hide_index=True, width="stretch")
 
+    year_data_notes(selected_year)
+
 
 elif page == "Where The Money Goes":
     st.title("Where The Money Goes")
@@ -1613,26 +1769,31 @@ elif page == "Where The Money Goes":
         "money_goes",
     )
     data_status_badge(row["data_status"])
-    source_caption(row)
 
     st.markdown(f"### {selected_state}, {selected_year}")
-    budget_split_chart(row)
-
-    metric_card(
-        "Projects and Development",
-        format_naira(row["capital_budget_ngn"]),
-        capital_budget_help(row),
-    )
-    metric_card(
-        "Running Government",
-        format_naira(row["recurrent_budget_ngn"]),
-        recurrent_budget_help(row),
-    )
-    metric_card("For every ₦100", budget_breakdown_text(row))
 
     if not has_budget_breakdown(row):
-        st.info("The split between projects and running government is not available yet.")
+        note_card(
+            f"We have the total budget for {selected_state} in {selected_year}, but "
+            "the detailed split between project spending and day-to-day running costs "
+            "has not yet been added."
+        )
+        st.caption("Try another state/year with a verified breakdown to see the split.")
     else:
+        metric_card(
+            "Projects and Development",
+            format_naira(row["capital_budget_ngn"]),
+            capital_budget_help(row),
+        )
+        metric_card(
+            "Running Government",
+            format_naira(row["recurrent_budget_ngn"]),
+            recurrent_budget_help(row),
+        )
+
+        st.markdown("### Budget split")
+        budget_split_chart(row)
+        metric_card("For every ₦100", budget_breakdown_text(row))
         note_card(
             f"For {selected_state}, the available data shows "
             f"{format_percent(row['capital_share_percent'])} for projects and development "
@@ -1640,6 +1801,9 @@ elif page == "Where The Money Goes":
         )
 
     budget_101()
+
+    with st.expander("See source details"):
+        source_caption(row)
 
     with st.expander("See detailed data"):
         detail_data = pd.DataFrame(
@@ -1668,6 +1832,8 @@ elif page == "Where The Money Goes":
         )
         st.dataframe(detail_data, hide_index=True, width="stretch")
 
+    year_data_notes(selected_year)
+
 
 elif page == "Compare States":
     st.title("Compare States")
@@ -1677,10 +1843,13 @@ elif page == "Compare States":
     year_data = selected_year_data.copy()
 
     state_options = year_data["state"].sort_values().tolist()
+    global_selected_state = st.session_state.get("selected_state")
     useful_defaults = [
         state for state in ["Lagos", "Edo", "Rivers", "Kano", "FCT"]
         if state in state_options
     ]
+    if global_selected_state in state_options and global_selected_state not in useful_defaults:
+        useful_defaults.insert(0, global_selected_state)
 
     selected_states = st.multiselect(
         "Select states to compare",
@@ -1698,13 +1867,18 @@ elif page == "Compare States":
         st.markdown("### Budget comparison")
 
         def comparison_chart(title, column, empty_message):
-            chart_data = comparison.dropna(subset=[column]).set_index("state")[[column]]
-            if chart_data.empty:
+            chart = horizontal_budget_chart(
+                comparison,
+                column,
+                title,
+                status_column="data_status",
+            )
+            if chart is None:
                 st.info(empty_message)
                 return
 
             st.markdown(f"#### {title}")
-            st.bar_chart(chart_data.rename(columns={column: title}))
+            st.altair_chart(chart, width="stretch")
 
         comparison_chart(
             "Total budget",
@@ -1788,8 +1962,9 @@ elif page == "Compare States":
             )
 
     st.info(
-        "Data note: comparison rows may mix verified, proposed, missing, and needs-checking data."
+        "Data note: comparisons may mix verified, proposed, missing, and source-check-pending figures."
     )
+    year_data_notes(selected_year)
 
 
 elif page == "Rankings":
@@ -1814,13 +1989,17 @@ elif page == "Rankings":
         ranking_column,
         ascending=False,
     ).head(10)
+    global_selected_state = st.session_state.get("selected_state")
 
     if ranked.empty:
         st.info(f"{selected_ranking} is not available for ranking.")
     else:
         st.markdown(f"### Top states by {selected_ranking.lower()}")
-        chart_data = ranked.set_index("state")[[ranking_column]]
-        st.bar_chart(chart_data.rename(columns={ranking_column: selected_ranking}))
+        st.caption(
+            "This ranks states using the selected year. A bigger budget does not always "
+            "mean better services."
+        )
+        ranking_bar_chart(ranked, ranking_column, selected_ranking)
 
         if selected_ranking in [
             "Budget per Resident",
@@ -1831,6 +2010,26 @@ elif page == "Rankings":
         if selected_ranking == "Total Budget":
             st.caption(
                 "Rankings include only states with total budget values for the selected year."
+            )
+
+        selected_state_rank_data = selected_year_data.dropna(subset=[ranking_column]).sort_values(
+            ranking_column,
+            ascending=False,
+        ).reset_index(drop=True)
+        if global_selected_state in selected_state_rank_data["state"].tolist():
+            selected_position = (
+                selected_state_rank_data.index[
+                    selected_state_rank_data["state"] == global_selected_state
+                ][0]
+                + 1
+            )
+            st.caption(
+                f"Selected state: {global_selected_state} is #{selected_position} "
+                f"for {selected_ranking.lower()} in {selected_year}."
+            )
+        else:
+            st.caption(
+                f"Selected state: {global_selected_state} does not have this figure available for {selected_year}."
             )
 
         with st.expander("See detailed data"):
@@ -1864,6 +2063,7 @@ elif page == "Rankings":
             st.dataframe(display, hide_index=True, width="stretch")
 
     budget_101()
+    year_data_notes(selected_year)
 
 
 elif page == "Budget Insights":
@@ -2097,6 +2297,9 @@ elif page == "About":
         "Nigeria Development Simulator is a public budget explainer. It is designed "
         "to help people understand state budgets quickly on a phone."
     )
+    note_card(
+        "This is an independent civic education tool. It is not an official government website."
+    )
 
     st.markdown("### What it can explain")
     metric_card("Total Budget", "How much the state plans to spend")
@@ -2121,6 +2324,8 @@ elif page == "About":
             "budget per resident, and the percentage split between capital and recurrent budgets."
         )
 
+    year_data_notes(selected_year)
+
 
 st.markdown("---")
 st.caption(
@@ -2128,6 +2333,5 @@ st.caption(
     + "\n\n"
     "© 2026 Nigeria Development Simulator. All Rights Reserved.\n\n"
     "Original analysis, design and presentation are protected. Source data remains "
-    "the property of the original publishers.\n\n"
-    "For civic education and exploratory analysis only."
+    "the property of the original publishers."
 )
