@@ -60,3 +60,15 @@ source notes so users can distinguish official figures from estimates.
 
 The app keeps source URLs out of the main public pages, but the source fields
 remain available for audit and later publication.
+
+## OpenStates Strategy
+
+Open Nigerian States / OpenStates is treated as the preferred public source
+directory for state budget documents. Use `SRC_OPENSTATES_MAIN` for the main
+portal record, and use state-specific OpenStates source IDs when a linked
+approved budget document has been identified.
+
+OpenStates entries should be treated as document-directory records until the
+figures have been extracted from the linked approved budget document. Do not
+replace a news-sourced or secondary figure with an OpenStates-linked figure
+unless the approved document value has been checked.
