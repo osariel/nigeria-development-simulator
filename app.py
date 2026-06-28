@@ -339,6 +339,34 @@ st.markdown(
         color: #064e3b;
     }
 
+    .navigation-hint {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.6rem;
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        color: #334155;
+        width: 100%;
+        max-width: 100%;
+        padding: 0.7rem 0.85rem;
+        margin: 0 0 1rem 0;
+        font-size: clamp(0.84rem, 2.4vw, 0.92rem);
+        line-height: 1.45;
+    }
+
+    .navigation-hint-icon {
+        color: #1f7a5c;
+        font-weight: 800;
+        line-height: 1.45;
+        flex: 0 0 auto;
+    }
+
+    .navigation-hint-text {
+        color: #334155;
+        min-width: 0;
+    }
+
     .small-muted {
         color: #64748b;
         font-size: clamp(0.84rem, 2.4vw, 0.9rem);
@@ -434,7 +462,8 @@ st.markdown(
 
         .metric-card,
         .plain-card,
-        .note-card {
+        .note-card,
+        .navigation-hint {
             border-radius: 12px;
             padding: 0.9rem;
             margin-bottom: 0.65rem;
@@ -478,7 +507,8 @@ st.markdown(
 
         .metric-card,
         .plain-card,
-        .note-card {
+        .note-card,
+        .navigation-hint {
             padding: 0.85rem;
             box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04);
         }
@@ -581,6 +611,21 @@ def note_card(text):
         f"""
         <div class="note-card">
             <p>{text}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_navigation_hint():
+    st.markdown(
+        """
+        <div class="navigation-hint">
+            <div class="navigation-hint-icon">☰</div>
+            <div class="navigation-hint-text">
+                Use the menu on the left to explore states, rankings, simulator, and methodology.
+                If the menu is hidden, click the arrow/☰ control at the top-left to reopen it.
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1549,6 +1594,8 @@ st.sidebar.selectbox(
     index=global_state_options.index(preferred_state),
     key="selected_state",
 )
+
+render_navigation_hint()
 
 if page == "Home":
     st.markdown(
