@@ -370,6 +370,18 @@ st.markdown(
         line-height: 1.45;
     }
 
+    .about-badge {
+        display: inline-block;
+        background: #e0f2fe;
+        border: 1px solid #7dd3fc;
+        color: #075985;
+        border-radius: 999px;
+        padding: 0.25rem 0.7rem;
+        font-size: 0.85rem;
+        font-weight: 800;
+        margin: 0.35rem 0 0.75rem 0;
+    }
+
     .plain-card,
     .note-card {
         background: #ffffff;
@@ -762,7 +774,7 @@ def data_status_label(status):
     if normalized == "needs_review":
         return "This figure is awaiting source verification"
     if normalized == "placeholder":
-        return "Prototype estimate — not official data"
+        return "Source pending"
     if normalized == "verified_breakdown":
         return "Verified from approved budget source"
     if normalized == "revised_total_verified":
@@ -819,7 +831,7 @@ def data_status_caption(status):
             "This figure is awaiting source verification against an approved budget source."
         ),
         "placeholder": (
-            "This is prototype or missing data and should not be treated as official."
+            "A source-backed figure is not available yet for this item."
         ),
         "verified_breakdown": (
             "Total, projects and running-government figures are available from a clear source."
@@ -1024,10 +1036,10 @@ def load_states():
             if "year" not in population.columns:
                 population["year"] = 2025
             population = population[["state", "year", "population"]].copy()
-            population["source_name"] = "Legacy prototype states.csv"
+            population["source_name"] = "Legacy states.csv fallback"
             population["source_url"] = ""
             population["notes"] = (
-                "Fallback prototype/sample population value from data/states.csv."
+                "Fallback population value from data/states.csv."
             )
         else:
             population = pd.DataFrame(columns=POPULATION_COLUMNS)
@@ -1144,20 +1156,20 @@ def load_states():
         if "year" not in states.columns:
             states["year"] = 2025
 
-        states["budget_source_name"] = "Legacy prototype states.csv"
+        states["budget_source_name"] = "Legacy states.csv fallback"
         states["budget_source_publisher"] = ""
         states["budget_source_type"] = "Legacy fallback CSV"
         states["budget_source_url"] = ""
         states["budget_notes"] = (
-            "Fallback prototype/sample value from data/states.csv."
+            "Fallback budget value from data/states.csv."
         )
         states["source_id"] = "legacy_states_csv"
         states["data_status"] = "placeholder"
         states["budget_status"] = "placeholder"
-        states["population_source_name"] = "Legacy prototype states.csv"
+        states["population_source_name"] = "Legacy states.csv fallback"
         states["population_source_url"] = ""
         states["population_notes"] = (
-            "Fallback prototype/sample value from data/states.csv."
+            "Fallback population value from data/states.csv."
         )
         data_mode = "legacy"
 
@@ -1266,10 +1278,10 @@ def load_project_costs():
                 "unit_cost_ngn": "cost_ngn",
             }
         )
-        costs["source_name"] = "Legacy prototype project_costs.csv"
+        costs["source_name"] = "Legacy project_costs.csv fallback"
         costs["source_url"] = ""
         costs["notes"] = (
-            "Fallback-compatible prototype assumption from the older project_costs.csv format."
+            "Fallback-compatible assumption from the older project_costs.csv format."
         )
     else:
         return DEFAULT_PROJECT_COSTS.copy(), True
@@ -2567,7 +2579,7 @@ elif page == "Budget Insights":
 elif page == "Data Sources":
     st.title("Data Sources")
     st.write(
-        "This prototype uses local CSV files. It now prefers separate budget, population "
+        "This app uses local CSV files. It prefers separate budget, population "
         "and source files when they exist, while keeping the old states.csv fallback for deployment safety."
     )
 
@@ -2614,8 +2626,8 @@ elif page == "Data Sources":
 
     st.markdown("### Source notes")
     note_card(
-        "Current rows are still prototype/sample values unless source_id, data_status "
-        "and notes are replaced with verified source details."
+        "Rows should be interpreted using source_id, data_status and notes. Some rows "
+        "may still be awaiting source review or detailed extraction."
     )
 
     st.markdown("### Data status")
@@ -2631,8 +2643,8 @@ elif page == "Data Sources":
     )
     metric_card(
         "Missing/partial",
-        "Prototype only",
-        "Prototype data that should not be relied upon for public decisions.",
+        "Source pending",
+        "A source-backed figure is not available yet, or the row still needs review.",
     )
 
     with st.expander("Preview normalized state data"):
@@ -2663,20 +2675,26 @@ elif page == "Data Sources":
 elif page == "About":
     render_back_to_home()
     st.title("About")
-    data_status_badge("placeholder")
+    st.markdown(
+        '<div class="about-badge">Independent civic education tool</div>',
+        unsafe_allow_html=True,
+    )
     st.write(
-        "Nigeria Development Simulator is a public budget explainer. It is designed "
-        "to help people understand state budgets quickly on a phone."
+        "Nigeria Development Simulator is a public budget explainer. It helps people "
+        "understand and compare Nigerian state budgets, population figures, spending "
+        "priorities, and simple development scenarios."
     )
     note_card(
-        "This is an independent civic education tool. It is not an official government website."
+        "This is an independent civic education tool. It is not an official government "
+        "website. Budget figures are based on public sources where available, and some "
+        "figures may still be marked for review where source details are incomplete."
     )
 
     st.markdown("### What it can explain")
-    metric_card("Total Budget", "How much the state plans to spend")
-    metric_card("Projects and Development", "Money usually linked to capital projects")
-    metric_card("Running Government", "Money for salaries and day-to-day operations")
-    metric_card("For every ₦100", "A simple split between projects and running government")
+    metric_card("Total Budget", "How much a state plans to spend in a selected year")
+    metric_card("Projects and Development", "Capital spending for public projects and infrastructure")
+    metric_card("Running Government", "Recurrent spending for salaries and day-to-day operations")
+    metric_card("For every ₦100", "A simple way to understand the spending split")
 
     st.markdown("### Important limits")
     note_card(
@@ -2685,8 +2703,9 @@ elif page == "About":
         "infrastructure and many other factors."
     )
     note_card(
-        "Rows may be verified, awaiting source verification, missing a split, or placeholder data. Project "
-        "translations are illustrative estimates, not official promises."
+        "Some figures are verified from public sources, while others may still be awaiting "
+        "source review or a detailed spending split. Project translations are illustrative "
+        "estimates, not official promises."
     )
 
     with st.expander("Technical notes"):

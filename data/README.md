@@ -42,8 +42,8 @@ source notes so users can distinguish official figures from estimates.
   dataset.
 - `Estimated`: derived from available public figures or transparent
   assumptions.
-- `Missing/partial`: missing, incomplete, or placeholder data. These values
-  should not be relied upon for public decisions.
+- `Missing/partial`: source-backed values are not available yet, or the row
+  still needs review before use in public analysis.
 
 ## Source Catalogue
 
