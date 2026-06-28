@@ -339,32 +339,23 @@ st.markdown(
         color: #064e3b;
     }
 
-    .navigation-hint {
+    .sidebar-brand {
         display: flex;
-        align-items: flex-start;
-        gap: 0.6rem;
-        background: #f1f5f9;
-        border: 1px solid #cbd5e1;
-        border-radius: 12px;
-        color: #334155;
-        width: 100%;
-        max-width: 100%;
-        padding: 0.7rem 0.85rem;
-        margin: 0 0 1rem 0;
-        font-size: clamp(0.84rem, 2.4vw, 0.92rem);
-        line-height: 1.45;
-    }
-
-    .navigation-hint-icon {
-        color: #1f7a5c;
+        align-items: center;
+        gap: 0.55rem;
+        color: #f8fafc;
+        font-size: 1.35rem;
         font-weight: 800;
-        line-height: 1.45;
-        flex: 0 0 auto;
+        line-height: 1.15;
+        margin: 0.5rem 0 0.35rem 0;
     }
 
-    .navigation-hint-text {
-        color: #334155;
-        min-width: 0;
+    .sidebar-menu-icon {
+        color: #f8fafc;
+        font-size: 1.45rem;
+        line-height: 1;
+        font-weight: 900;
+        flex: 0 0 auto;
     }
 
     .small-muted {
@@ -462,8 +453,7 @@ st.markdown(
 
         .metric-card,
         .plain-card,
-        .note-card,
-        .navigation-hint {
+        .note-card {
             border-radius: 12px;
             padding: 0.9rem;
             margin-bottom: 0.65rem;
@@ -507,8 +497,7 @@ st.markdown(
 
         .metric-card,
         .plain-card,
-        .note-card,
-        .navigation-hint {
+        .note-card {
             padding: 0.85rem;
             box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04);
         }
@@ -617,19 +606,12 @@ def note_card(text):
     )
 
 
-def render_navigation_hint():
-    st.markdown(
-        """
-        <div class="navigation-hint">
-            <div class="navigation-hint-icon">☰</div>
-            <div class="navigation-hint-text">
-                Use the menu on the left to explore states, rankings, simulator, and methodology.
-                If the menu is hidden, click the arrow/☰ control at the top-left to reopen it.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+def render_year_context_notice(selected_year):
+    if int(selected_year) == 2025:
+        note_card(
+            "2025 data is currently a baseline comparative dataset. Figures are "
+            "marked needs_review until official state budget documents are extracted."
+        )
 
 
 def population_note():
@@ -716,6 +698,28 @@ def data_status_label(status):
     return "Not available yet"
 
 
+def display_status_label(status, year=None, budget_status=None, state=None):
+    normalized_status = str(status).strip().lower()
+    normalized_budget_status = str(budget_status).strip().lower()
+    normalized_state = str(state).strip().lower()
+    numeric_year = pd.to_numeric(year, errors="coerce")
+
+    if (
+        pd.notna(numeric_year)
+        and int(numeric_year) == 2025
+        and normalized_budget_status == "missing"
+        and normalized_state == "fct"
+    ):
+        return "No 2025 FCT value entered yet"
+    if (
+        pd.notna(numeric_year)
+        and int(numeric_year) == 2025
+        and normalized_status == "needs_review"
+    ):
+        return "Awaiting official-document review"
+    return data_status_label(status)
+
+
 def data_status_caption(status):
     normalized = str(status).strip().lower()
     captions = {
@@ -759,8 +763,39 @@ def data_status_caption(status):
     return captions.get(normalized, "Use this badge as a quick guide to data confidence.")
 
 
-def data_status_badge(status):
-    label = data_status_label(status)
+def display_status_caption(status, year=None, budget_status=None, state=None):
+    normalized_status = str(status).strip().lower()
+    normalized_budget_status = str(budget_status).strip().lower()
+    normalized_state = str(state).strip().lower()
+    numeric_year = pd.to_numeric(year, errors="coerce")
+
+    if (
+        pd.notna(numeric_year)
+        and int(numeric_year) == 2025
+        and normalized_budget_status == "missing"
+        and normalized_state == "fct"
+    ):
+        return "The 2025 FCT budget figure has not yet been entered."
+    if (
+        pd.notna(numeric_year)
+        and int(numeric_year) == 2025
+        and normalized_status == "needs_review"
+    ):
+        return "This 2025 baseline figure is awaiting review against official state budget documents."
+    return data_status_caption(status)
+
+
+def row_status_label(row):
+    return display_status_label(
+        row.get("data_status"),
+        row.get("year"),
+        row.get("budget_status"),
+        row.get("state"),
+    )
+
+
+def data_status_badge(status, year=None, budget_status=None, state=None):
+    label = display_status_label(status, year, budget_status, state)
     normalized = str(status).strip().lower()
     if normalized in ["verified", "verified_breakdown"]:
         background = "#dcfce7"
@@ -809,7 +844,7 @@ def data_status_badge(status):
         """,
         unsafe_allow_html=True,
     )
-    st.caption(data_status_caption(status))
+    st.caption(display_status_caption(status, year, budget_status, state))
 
 
 def source_caption(row):
@@ -817,7 +852,12 @@ def source_caption(row):
     source_name = str(row.get("budget_source_name", "")).strip()
     publisher = str(row.get("budget_source_publisher", "")).strip()
     source_type = str(row.get("budget_source_type", "")).strip()
-    stage = data_status_label(row.get("data_status", "missing"))
+    stage = display_status_label(
+        row.get("data_status", "missing"),
+        row.get("year"),
+        row.get("budget_status"),
+        row.get("state"),
+    )
 
     if source_id in ["", "SRC_PENDING", "unknown"] or not source_name:
         st.caption(f"Budget stage: {stage} | Source pending")
@@ -1205,6 +1245,11 @@ budget_insights, fiscal_indicators, budget_outcomes = load_budget_insights_data(
 
 
 def year_update_note(selected_year):
+    if int(selected_year) == 2025:
+        st.info(
+            "2025 data is currently a baseline comparative dataset. Figures are "
+            "marked needs_review until official state budget documents are extracted."
+        )
     if int(selected_year) == 2026:
         st.info(
             "2026 data is being added gradually. Revised/supplementary or original "
@@ -1271,9 +1316,7 @@ def data_quality_summary(year_data, selected_year):
             st.caption("All states/FCT for this year currently have budget figures.")
 
         status_counts = (
-            year_data["data_status"]
-            .fillna("Missing/partial")
-            .map(data_status_label)
+            year_data.apply(row_status_label, axis=1)
             .value_counts()
             .reset_index()
         )
@@ -1377,14 +1420,17 @@ def naira_axis():
 
 
 def horizontal_budget_chart(data, value_column, title, status_column=None):
-    chart_data = data[["state", value_column] + ([status_column] if status_column else [])].copy()
+    chart_columns = ["state", "year", "budget_status", value_column]
+    if status_column:
+        chart_columns.append(status_column)
+    chart_data = data[chart_columns].copy()
     chart_data = chart_data.dropna(subset=[value_column])
     if chart_data.empty:
         return None
 
     chart_data["Formatted value"] = chart_data[value_column].map(format_naira)
     if status_column:
-        chart_data["Data confidence"] = chart_data[status_column].map(data_status_label)
+        chart_data["Data confidence"] = chart_data.apply(row_status_label, axis=1)
 
     chart_height = max(240, min(520, 42 * len(chart_data)))
     tooltips = [
@@ -1416,13 +1462,15 @@ def horizontal_budget_chart(data, value_column, title, status_column=None):
 
 
 def ranking_bar_chart(ranked, ranking_column, selected_ranking):
-    chart_data = ranked[["state", ranking_column, "data_status"]].copy()
+    chart_data = ranked[
+        ["state", "year", "budget_status", ranking_column, "data_status"]
+    ].copy()
     chart_data["Formatted value"] = (
         chart_data[ranking_column].map(format_percent)
         if ranking_column == "capital_share_percent"
         else chart_data[ranking_column].map(format_naira)
     )
-    chart_data["Data confidence"] = chart_data["data_status"].map(data_status_label)
+    chart_data["Data confidence"] = chart_data.apply(row_status_label, axis=1)
     chart_height = max(260, min(520, 42 * len(chart_data)))
 
     value_axis = (
@@ -1547,10 +1595,13 @@ def public_project_label(item):
 
 st.sidebar.markdown(
     """
-    # Nigeria Budget
-
-    Simple public budget explainer.
-    """
+    <div class="sidebar-brand">
+        <span class="sidebar-menu-icon">☰</span>
+        <span>Nigeria Budget</span>
+    </div>
+    <p>Simple public budget explainer.</p>
+    """,
+    unsafe_allow_html=True,
 )
 
 page = st.sidebar.radio(
@@ -1595,7 +1646,7 @@ st.sidebar.selectbox(
     key="selected_state",
 )
 
-render_navigation_hint()
+render_year_context_notice(selected_year)
 
 if page == "Home":
     st.markdown(
@@ -1656,7 +1707,12 @@ elif page == "My State":
     )
 
     st.markdown(f"### {selected_state}, {selected_year}")
-    data_status_badge(row["data_status"])
+    data_status_badge(
+        row["data_status"],
+        row.get("year"),
+        row.get("budget_status"),
+        row.get("state"),
+    )
 
     if has_value(row["annual_budget_ngn"]):
         metric_card(
@@ -1723,7 +1779,7 @@ elif page == "My State":
             },
             {
                 "Label": "Budget data status",
-                "Value": data_status_label(row["data_status"]),
+                "Value": row_status_label(row),
             },
             {
                 "Label": "Population source",
@@ -1830,7 +1886,12 @@ elif page == "What Could This Build?":
             )
 
     with st.expander("See source details"):
-        data_status_badge(row["data_status"])
+        data_status_badge(
+            row["data_status"],
+            row.get("year"),
+            row.get("budget_status"),
+            row.get("state"),
+        )
         source_caption(row)
         partial_data_caption(row)
 
@@ -1864,7 +1925,12 @@ elif page == "Where The Money Goes":
         selected_year,
         "money_goes",
     )
-    data_status_badge(row["data_status"])
+    data_status_badge(
+        row["data_status"],
+        row.get("year"),
+        row.get("budget_status"),
+        row.get("state"),
+    )
 
     st.markdown(f"### {selected_state}, {selected_year}")
 
@@ -2009,6 +2075,8 @@ elif page == "Compare States":
                     "capital_budget_ngn",
                     "recurrent_budget_ngn",
                     "annual_budget_per_person",
+                    "year",
+                    "budget_status",
                     "data_status",
                     "source_id",
                     "budget_source_name",
@@ -2022,7 +2090,7 @@ elif page == "Compare States":
             display["annual_budget_per_person"] = display[
                 "annual_budget_per_person"
             ].map(format_ngn_long)
-            display["data_status"] = display["data_status"].map(data_status_label)
+            display["data_status"] = display.apply(row_status_label, axis=1)
             display["budget_source_name"] = display.apply(source_display_name, axis=1)
             display["budget_source_publisher"] = display[
                 "budget_source_publisher"
@@ -2030,7 +2098,7 @@ elif page == "Compare States":
             display["budget_source_type"] = display["budget_source_type"].map(
                 format_optional_text
             )
-            display = display.drop(columns=["source_id"])
+            display = display.drop(columns=["source_id", "year", "budget_status"])
             display = display.rename(
                 columns={
                     "state": "State",
@@ -2131,6 +2199,8 @@ elif page == "Rankings":
             display = ranked[
                 [
                     "state",
+                    "year",
+                    "budget_status",
                     ranking_column,
                     "data_status",
                     "budget_source_name",
@@ -2140,10 +2210,11 @@ elif page == "Rankings":
                 display[ranking_column] = display[ranking_column].map(format_percent)
             else:
                 display[ranking_column] = display[ranking_column].map(format_ngn_long)
-            display["data_status"] = display["data_status"].map(data_status_label)
+            display["data_status"] = display.apply(row_status_label, axis=1)
             display["budget_source_name"] = display["budget_source_name"].map(
                 format_optional_text
             )
+            display = display.drop(columns=["year", "budget_status"])
             display = display.rename(
                 columns={
                     "state": "State",
