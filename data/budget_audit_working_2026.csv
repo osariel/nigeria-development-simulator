@@ -1,0 +1,6 @@
+state,year,found_total_ngn,found_capital_ngn,found_recurrent_ngn,budget_stage,source_quality,source_url,source_title,notes,decision
+Edo,2026,939850000000,633327182058,306522817942,approved,official_pdf,,Edo State FY 2026 Citizens Budget,Already entered and verified,keep_verified
+Lagos,2026,400000000000,,,needs_review,official_news,,Lagos Budget Hits N4 Trillion in 2026,Need approved capital/recurrent split and ideally budget PDF,do_not_mark_verified_yet
+Ogun,2026,1669000000000,1044000000000,625000000000,proposed,official_assembly_news,,Ogun Governor Presents N1.669trn 2026 Appropriation Bill,Need confirmation that bill was passed/signed before marking approved,do_not_mark_verified_yet
+Rivers,2026,1854248734475.76,,,proposed,news_report,,Rivers Executive Council Approves N1.85tn 2026 Budget Proposal,Proposal/exco approval only; do not treat as approved budget yet,do_not_mark_verified_yet
+Kaduna,2026,985900000000,698900000000,287000000000,approved,official_government_news,,Uba Sani Signs 2026 Budget Education Takes Lion's Share,Need official PDF/OpenStates source if possible; signed into law,can_mark_verified_if_source_url_added
