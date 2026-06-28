@@ -14,9 +14,7 @@ BUDGET_COLUMNS = [
     "total_budget_ngn",
     "capital_budget_ngn",
     "recurrent_budget_ngn",
-    "personnel_cost_ngn",
-    "overhead_cost_ngn",
-    "debt_service_ngn",
+    "budget_status",
     "source_id",
     "data_status",
     "notes",
@@ -31,9 +29,7 @@ BUDGET_BASE_COLUMNS = [
 BUDGET_OPTIONAL_COLUMNS = [
     "capital_budget_ngn",
     "recurrent_budget_ngn",
-    "personnel_cost_ngn",
-    "overhead_cost_ngn",
-    "debt_service_ngn",
+    "budget_status",
 ]
 
 POPULATION_COLUMNS = [
@@ -647,9 +643,15 @@ def format_indicator_value(row):
 def data_status_label(status):
     normalized = str(status).strip().lower()
     if normalized == "verified":
-        return "Verified"
+        return "Verified from approved budget source"
+    if normalized == "missing_split":
+        return "Total budget verified; capital/recurrent split still pending"
+    if normalized == "needs_review":
+        return "This figure is awaiting source verification"
+    if normalized == "placeholder":
+        return "Prototype estimate — not official data"
     if normalized == "verified_breakdown":
-        return "Verified"
+        return "Verified from approved budget source"
     if normalized == "revised_total_verified":
         return "Revised budget"
     if normalized == "revised_total_needs_review":
@@ -662,8 +664,6 @@ def data_status_label(status):
         return "Verified total, breakdown pending"
     if normalized == "proposed_total_needs_review":
         return "Proposed / not final"
-    if normalized == "needs_review":
-        return "Needs review"
     if normalized == "needs_extraction":
         return "Needs extraction"
     if normalized in ["estimated", "estimate", "projection", "estimated/projection"]:
@@ -674,6 +674,18 @@ def data_status_label(status):
 def data_status_caption(status):
     normalized = str(status).strip().lower()
     captions = {
+        "verified": (
+            "This figure has been extracted from an approved budget source."
+        ),
+        "missing_split": (
+            "The total budget has a source, but the capital/recurrent split still needs extraction."
+        ),
+        "needs_review": (
+            "This figure is awaiting source verification against an approved budget source."
+        ),
+        "placeholder": (
+            "This is prototype or missing data and should not be treated as official."
+        ),
         "verified_breakdown": (
             "Total, projects and running-government figures are available from a clear source."
         ),
@@ -709,7 +721,7 @@ def data_status_badge(status):
         background = "#dcfce7"
         border = "#86efac"
         color = "#166534"
-    elif normalized in ["approved_total_verified", "partial_verified_total"]:
+    elif normalized in ["missing_split", "approved_total_verified", "partial_verified_total"]:
         background = "#dbeafe"
         border = "#93c5fd"
         color = "#1e3a8a"
@@ -722,6 +734,7 @@ def data_status_badge(status):
         "estimate",
         "projection",
         "estimated/projection",
+        "needs_review",
         "approved_total_needs_review",
         "proposed_total_needs_review",
         "revised_total_needs_review",
@@ -851,10 +864,12 @@ def load_states():
         for column in BUDGET_OPTIONAL_COLUMNS:
             if column not in budgets.columns:
                 budgets[column] = pd.NA
+        if "budget_status" not in budgets.columns:
+            budgets["budget_status"] = "missing"
         if "source_id" not in budgets.columns:
             budgets["source_id"] = "unknown"
         if "data_status" not in budgets.columns:
-            budgets["data_status"] = "Missing/partial"
+            budgets["data_status"] = "placeholder"
         if "notes" not in budgets.columns:
             budgets["notes"] = ""
 
@@ -892,15 +907,17 @@ def load_states():
             st.stop()
 
         states["source_id"] = states["source_id"].fillna("unknown")
-        states["data_status"] = states["data_status"].fillna("Missing/partial")
+        states["data_status"] = states["data_status"].fillna("placeholder")
         states["budget_notes"] = states["budget_notes"].fillna("")
         if sources_path.exists():
             sources = safe_read_csv(sources_path, "data/sources.csv")
             source_columns = [
                 "source_id",
                 "source_name",
-                "publisher",
-                "source_type",
+                "source_url",
+                "budget_type",
+                "document_title",
+                "extraction_status",
             ]
             if set(source_columns).issubset(sources.columns):
                 source_lookup = (
@@ -917,18 +934,36 @@ def load_states():
                 states["budget_source_name"] = states["source_name"].fillna(
                     states["source_id"]
                 )
-                states["budget_source_publisher"] = states["publisher"].fillna("")
-                states["budget_source_type"] = states["source_type"].fillna("")
-                states = states.drop(columns=["source_name", "publisher", "source_type"])
+                states["budget_source_publisher"] = ""
+                states["budget_source_type"] = states["budget_type"].fillna("")
+                states["budget_source_url"] = states["source_url"].fillna("")
+                states["budget_document_title"] = states["document_title"].fillna("")
+                states["budget_extraction_status"] = states[
+                    "extraction_status"
+                ].fillna("")
+                states = states.drop(
+                    columns=[
+                        "source_name",
+                        "source_url",
+                        "budget_type",
+                        "document_title",
+                        "extraction_status",
+                    ]
+                )
             else:
                 states["budget_source_name"] = states["source_id"].fillna("unknown")
                 states["budget_source_publisher"] = ""
                 states["budget_source_type"] = ""
+                states["budget_source_url"] = ""
+                states["budget_document_title"] = ""
+                states["budget_extraction_status"] = ""
         else:
             states["budget_source_name"] = states["source_id"].fillna("unknown")
             states["budget_source_publisher"] = ""
             states["budget_source_type"] = ""
-        states["budget_source_url"] = ""
+            states["budget_source_url"] = ""
+            states["budget_document_title"] = ""
+            states["budget_extraction_status"] = ""
 
         data_mode = "new"
     else:
@@ -946,9 +981,8 @@ def load_states():
             "Fallback prototype/sample value from data/states.csv."
         )
         states["source_id"] = "legacy_states_csv"
-        states["data_status"] = "Missing/partial"
-        for column in ["personnel_cost_ngn", "overhead_cost_ngn", "debt_service_ngn"]:
-            states[column] = pd.NA
+        states["data_status"] = "placeholder"
+        states["budget_status"] = "placeholder"
         states["population_source_name"] = "Legacy prototype states.csv"
         states["population_source_url"] = ""
         states["population_notes"] = (
@@ -958,10 +992,14 @@ def load_states():
 
 
     states["year"] = states["year"].astype(int)
-    states["data_status"] = states["data_status"].fillna("Missing/partial")
+    states["data_status"] = states["data_status"].fillna("placeholder")
     states["data_status"] = states["data_status"].where(
         states["data_status"].isin(
             [
+                "verified",
+                "missing_split",
+                "needs_review",
+                "placeholder",
                 "Verified",
                 "Estimated",
                 "Estimated/projection",
@@ -976,7 +1014,7 @@ def load_states():
                 "proposed_total_needs_review",
             ]
         ),
-        "Missing/partial",
+        "placeholder",
     )
 
     numeric_columns = [
@@ -984,9 +1022,6 @@ def load_states():
         "annual_budget_ngn",
         "capital_budget_ngn",
         "recurrent_budget_ngn",
-        "personnel_cost_ngn",
-        "overhead_cost_ngn",
-        "debt_service_ngn",
     ]
     for column in numeric_columns:
         states[column] = pd.to_numeric(states[column], errors="coerce")
@@ -1368,9 +1403,6 @@ def partial_data_caption(row):
     labels = {
         "capital_budget_ngn": "projects and development",
         "recurrent_budget_ngn": "running government",
-        "personnel_cost_ngn": "personnel cost",
-        "overhead_cost_ngn": "overhead cost",
-        "debt_service_ngn": "debt service",
     }
     for column, label in labels.items():
         if pd.isna(row.get(column)):
@@ -2209,7 +2241,7 @@ elif page == "Data Sources":
     metric_card(
         "data/state_budgets.csv",
         "Preferred budget file",
-        "Columns include budget amounts, personnel/overhead/debt fields, source_id, data_status and notes.",
+        "Columns include budget amounts, budget_status, data_status, source_id and notes.",
     )
     metric_card(
         "data/state_population.csv",
@@ -2224,7 +2256,7 @@ elif page == "Data Sources":
     metric_card(
         "data/sources.csv",
         "Source catalogue",
-        "Documents source_id, publisher, year, URL, source type, access date and reliability notes.",
+        "Documents source_id, state, year, budget type, source URL, extraction status and extracted figures.",
     )
 
     if state_data_mode == "legacy":
@@ -2270,6 +2302,7 @@ elif page == "Data Sources":
         preview_columns = [
             "state",
             "year",
+            "budget_status",
             "data_status",
             "annual_budget_ngn",
             "capital_budget_ngn",
@@ -2292,7 +2325,7 @@ elif page == "Data Sources":
 
 elif page == "About":
     st.title("About")
-    data_status_badge("Missing/partial")
+    data_status_badge("placeholder")
     st.write(
         "Nigeria Development Simulator is a public budget explainer. It is designed "
         "to help people understand state budgets quickly on a phone."
@@ -2314,7 +2347,7 @@ elif page == "About":
         "infrastructure and many other factors."
     )
     note_card(
-        "Rows may be verified, estimated/projection, or missing/partial. Project "
+        "Rows may be verified, awaiting source verification, missing a split, or placeholder data. Project "
         "translations are illustrative estimates, not official promises."
     )
 
