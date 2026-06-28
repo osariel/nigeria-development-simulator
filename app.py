@@ -1182,6 +1182,10 @@ def data_quality_summary(year_data, selected_year):
         "state",
     ].nunique()
     missing_budget = max(total_rows - rows_with_budget, 0)
+    status_counts_raw = year_data["data_status"].fillna("placeholder").astype(str)
+    verified_rows = int((status_counts_raw == "verified").sum())
+    missing_split_rows = int((status_counts_raw == "missing_split").sum())
+    needs_review_rows = int((status_counts_raw == "needs_review").sum())
 
     with st.expander("See data coverage"):
         st.caption(
@@ -1190,6 +1194,16 @@ def data_quality_summary(year_data, selected_year):
         )
         metric_card("States in dataset", format_number(total_rows))
         metric_card("States with budget figures", format_number(rows_with_budget))
+        if int(selected_year) == 2026:
+            metric_card("Verified rows", format_number(verified_rows))
+            metric_card("Missing split rows", format_number(missing_split_rows))
+            metric_card("Needs review rows", format_number(needs_review_rows))
+            st.caption(
+                "2026 data currently covers all 36 states and FCT. Rows marked verified "
+                "have source-backed totals and splits. Rows marked missing_split have a "
+                "reported or approved total but the capital/recurrent split is still being "
+                "reconciled. Rows marked needs_review should be treated as provisional."
+            )
 
         if missing_budget:
             missing_states = (
@@ -1422,6 +1436,10 @@ def has_budget_breakdown(row):
     )
 
 
+def has_pending_split(row):
+    return has_value(row.get("annual_budget_ngn")) and not has_budget_breakdown(row)
+
+
 def total_budget_help(row):
     if not has_value(row.get("annual_budget_ngn")):
         return "This total budget figure has not yet been extracted for this state/year."
@@ -1609,24 +1627,23 @@ elif page == "My State":
         )
         population_note()
 
-    if has_value(row["capital_budget_ngn"]):
+    if has_budget_breakdown(row):
         metric_card(
             "Projects and Development",
             format_naira(row["capital_budget_ngn"]),
             capital_budget_help(row),
         )
-    if has_value(row["recurrent_budget_ngn"]):
         metric_card(
             "Running Government",
             format_naira(row["recurrent_budget_ngn"]),
             recurrent_budget_help(row),
         )
-    if has_value(row["capital_budget_per_person"]):
-        metric_card(
-            "Project Budget per Resident",
-            format_naira(row["capital_budget_per_person"]),
-            project_per_person_budget_help(row),
-        )
+        if has_value(row["capital_budget_per_person"]):
+            metric_card(
+                "Project Budget per Resident",
+                format_naira(row["capital_budget_per_person"]),
+                project_per_person_budget_help(row),
+            )
 
     if has_budget_breakdown(row):
         st.markdown("### Where the money goes")
@@ -1636,8 +1653,8 @@ elif page == "My State":
     st.markdown("### What this means")
     if not has_budget_breakdown(row):
         note_card(
-            f"We have the total budget for {selected_state} in {selected_year}, but "
-            "the split between project spending and day-to-day running costs has not yet been added."
+            f"We have the total budget for {selected_state} in {selected_year}. "
+            "Capital/recurrent split pending."
         )
     else:
         note_card(
@@ -1806,9 +1823,8 @@ elif page == "Where The Money Goes":
 
     if not has_budget_breakdown(row):
         note_card(
-            f"We have the total budget for {selected_state} in {selected_year}, but "
-            "the detailed split between project spending and day-to-day running costs "
-            "has not yet been added."
+            f"We have the total budget for {selected_state} in {selected_year}. "
+            "Capital/recurrent split pending."
         )
         st.caption("Try another state/year with a verified breakdown to see the split.")
     else:
