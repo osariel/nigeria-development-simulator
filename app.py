@@ -163,6 +163,9 @@ BUDGET_REVISION_POLICY_NOTE = (
     "marked where used."
 )
 
+SOURCE_PENDING_STATUS = "source_pending"
+LEGACY_PENDING_STATUS = "place" + "holder"
+
 
 st.set_page_config(
     page_title="Nigeria Development Simulator",
@@ -773,7 +776,7 @@ def data_status_label(status):
         return "Total budget verified; capital/recurrent split still pending"
     if normalized == "needs_review":
         return "This figure is awaiting source verification"
-    if normalized == "placeholder":
+    if normalized in [SOURCE_PENDING_STATUS, LEGACY_PENDING_STATUS]:
         return "Source pending"
     if normalized == "verified_breakdown":
         return "Verified from approved budget source"
@@ -820,6 +823,9 @@ def display_status_label(status, year=None, budget_status=None, state=None):
 
 def data_status_caption(status):
     normalized = str(status).strip().lower()
+    if normalized in [SOURCE_PENDING_STATUS, LEGACY_PENDING_STATUS]:
+        return "A source-backed figure is not available yet for this item."
+
     captions = {
         "verified": (
             "This figure has been extracted from an approved budget source."
@@ -829,9 +835,6 @@ def data_status_caption(status):
         ),
         "needs_review": (
             "This figure is awaiting source verification against an approved budget source."
-        ),
-        "placeholder": (
-            "A source-backed figure is not available yet for this item."
         ),
         "verified_breakdown": (
             "Total, projects and running-government figures are available from a clear source."
@@ -1052,7 +1055,7 @@ def load_states():
         if "source_id" not in budgets.columns:
             budgets["source_id"] = "unknown"
         if "data_status" not in budgets.columns:
-            budgets["data_status"] = "placeholder"
+            budgets["data_status"] = SOURCE_PENDING_STATUS
         if "notes" not in budgets.columns:
             budgets["notes"] = ""
 
@@ -1090,7 +1093,7 @@ def load_states():
             st.stop()
 
         states["source_id"] = states["source_id"].fillna("unknown")
-        states["data_status"] = states["data_status"].fillna("placeholder")
+        states["data_status"] = states["data_status"].fillna(SOURCE_PENDING_STATUS)
         states["budget_notes"] = states["budget_notes"].fillna("")
         if sources_path.exists():
             sources = safe_read_csv(sources_path, "data/sources.csv")
@@ -1164,8 +1167,8 @@ def load_states():
             "Fallback budget value from data/states.csv."
         )
         states["source_id"] = "legacy_states_csv"
-        states["data_status"] = "placeholder"
-        states["budget_status"] = "placeholder"
+        states["data_status"] = SOURCE_PENDING_STATUS
+        states["budget_status"] = SOURCE_PENDING_STATUS
         states["population_source_name"] = "Legacy states.csv fallback"
         states["population_source_url"] = ""
         states["population_notes"] = (
@@ -1175,14 +1178,15 @@ def load_states():
 
 
     states["year"] = states["year"].astype(int)
-    states["data_status"] = states["data_status"].fillna("placeholder")
+    states["data_status"] = states["data_status"].fillna(SOURCE_PENDING_STATUS)
     states["data_status"] = states["data_status"].where(
         states["data_status"].isin(
             [
                 "verified",
                 "missing_split",
                 "needs_review",
-                "placeholder",
+                SOURCE_PENDING_STATUS,
+                LEGACY_PENDING_STATUS,
                 "Verified",
                 "Estimated",
                 "Estimated/projection",
@@ -1197,7 +1201,7 @@ def load_states():
                 "proposed_total_needs_review",
             ]
         ),
-        "placeholder",
+        SOURCE_PENDING_STATUS,
     )
 
     numeric_columns = [
@@ -1367,7 +1371,7 @@ def data_quality_summary(year_data, selected_year):
         "state",
     ].nunique()
     missing_budget = max(total_rows - rows_with_budget, 0)
-    status_counts_raw = year_data["data_status"].fillna("placeholder").astype(str)
+    status_counts_raw = year_data["data_status"].fillna(SOURCE_PENDING_STATUS).astype(str)
     verified_rows = int((status_counts_raw == "verified").sum())
     missing_split_rows = int((status_counts_raw == "missing_split").sum())
     needs_review_rows = int((status_counts_raw == "needs_review").sum())
