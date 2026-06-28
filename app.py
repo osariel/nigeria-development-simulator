@@ -1,4 +1,5 @@
 from pathlib import Path
+from urllib.parse import quote
 
 import altair as alt
 import pandas as pd
@@ -316,6 +317,59 @@ st.markdown(
         font-size: clamp(1.25rem, 5vw, 1.65rem);
     }
 
+    .infographic-card {
+        background: #ffffff;
+        border: 1px solid #dbe3ec;
+        border-radius: 14px;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        padding: clamp(0.9rem, 3vw, 1rem);
+        margin-bottom: 0.75rem;
+        box-shadow: 0 5px 16px rgba(15, 23, 42, 0.05);
+        overflow-wrap: anywhere;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+
+    .infographic-card:hover {
+        border-color: #1f7a5c;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+        transform: translateY(-1px);
+    }
+
+    .infographic-link {
+        display: block;
+        color: inherit;
+        text-decoration: none !important;
+    }
+
+    .infographic-link:focus-visible .infographic-card {
+        outline: 3px solid rgba(31, 122, 92, 0.35);
+        outline-offset: 2px;
+        border-color: #1f7a5c;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    .infographic-icon {
+        font-size: 1.45rem;
+        line-height: 1;
+        margin-bottom: 0.55rem;
+    }
+
+    .infographic-title {
+        color: #0f172a;
+        font-size: clamp(0.98rem, 3vw, 1.08rem);
+        font-weight: 800;
+        line-height: 1.25;
+        margin-bottom: 0.35rem;
+    }
+
+    .infographic-text {
+        color: #475569;
+        font-size: clamp(0.86rem, 2.5vw, 0.94rem);
+        line-height: 1.45;
+    }
+
     .plain-card,
     .note-card {
         background: #ffffff;
@@ -453,7 +507,8 @@ st.markdown(
 
         .metric-card,
         .plain-card,
-        .note-card {
+        .note-card,
+        .infographic-card {
             border-radius: 12px;
             padding: 0.9rem;
             margin-bottom: 0.65rem;
@@ -497,7 +552,8 @@ st.markdown(
 
         .metric-card,
         .plain-card,
-        .note-card {
+        .note-card,
+        .infographic-card {
             padding: 0.85rem;
             box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04);
         }
@@ -590,6 +646,35 @@ def project_result_card(label, value, help_text=None):
             <div class="metric-value">{value}</div>
             {help_markup}
         </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def infographic_card(icon, title, text):
+    st.markdown(
+        f"""
+        <div class="infographic-card">
+            <div class="infographic-icon">{icon}</div>
+            <div class="infographic-title">{title}</div>
+            <div class="infographic-text">{text}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def clickable_infographic_card(icon, title, text, target_page):
+    page_param = quote(target_page)
+    st.markdown(
+        f"""
+        <a class="infographic-link" href="?page={page_param}" aria-label="Open {title}">
+            <div class="infographic-card">
+                <div class="infographic-icon">{icon}</div>
+                <div class="infographic-title">{title}</div>
+                <div class="infographic-text">{text}</div>
+            </div>
+        </a>
         """,
         unsafe_allow_html=True,
     )
@@ -1591,6 +1676,105 @@ def public_project_label(item):
     return str(item).title()
 
 
+PUBLIC_PAGES = [
+    "Home",
+    "My State",
+    "What Could This Build?",
+    "Compare States",
+    "Rankings",
+    "Where The Money Goes",
+    "About",
+]
+
+
+query_page = st.query_params.get("page")
+if query_page in PUBLIC_PAGES:
+    st.session_state["page"] = query_page
+    del st.query_params["page"]
+
+if st.session_state.get("page") not in PUBLIC_PAGES:
+    st.session_state["page"] = "Home"
+
+available_years = states["year"].drop_duplicates().sort_values(ascending=False).tolist()
+if st.session_state.get("selected_year") not in available_years:
+    st.session_state["selected_year"] = available_years[0]
+
+
+def year_data_for(year):
+    return states[states["year"] == year].copy()
+
+
+def state_options_for(year):
+    return year_data_for(year)["state"].drop_duplicates().sort_values().tolist()
+
+
+def ensure_selected_state_for_year(year):
+    state_options = state_options_for(year)
+    if not state_options:
+        st.error(f"No states are available for {year}.")
+        st.stop()
+
+    preferred_state = st.session_state.get("selected_state")
+    if preferred_state not in state_options:
+        st.session_state["selected_state"] = (
+            "Lagos" if "Lagos" in state_options else state_options[0]
+        )
+    return state_options
+
+
+ensure_selected_state_for_year(st.session_state["selected_year"])
+
+
+def render_exploration_controls(title="Choose what to explore", helper_text=None):
+    if title:
+        st.markdown(f"### {title}")
+    if helper_text:
+        st.caption(helper_text)
+
+    if st.session_state.get("selected_year_control") not in available_years:
+        st.session_state["selected_year_control"] = st.session_state["selected_year"]
+    year_col, state_col = st.columns(2)
+    with year_col:
+        selected_year = st.selectbox(
+            "Select budget year",
+            available_years,
+            key="selected_year_control",
+        )
+    st.session_state["selected_year"] = selected_year
+
+    state_options = ensure_selected_state_for_year(selected_year)
+    if st.session_state.get("selected_state_control") not in state_options:
+        st.session_state["selected_state_control"] = st.session_state["selected_state"]
+    with state_col:
+        selected_state = st.selectbox(
+            "Select state",
+            state_options,
+            key="selected_state_control",
+        )
+    st.session_state["selected_state"] = selected_state
+
+    selected_year = st.session_state["selected_year"]
+    selected_year_data = year_data_for(selected_year)
+    if selected_year_data.empty:
+        st.error(f"No budget rows are available for {selected_year}.")
+        st.stop()
+    return selected_year, selected_year_data
+
+
+def render_back_to_home():
+    st.markdown(
+        '<a href="?page=Home" aria-label="Back to Home">← Back to Home</a>',
+        unsafe_allow_html=True,
+    )
+
+
+selected_year = st.session_state["selected_year"]
+selected_year_data = year_data_for(selected_year)
+if selected_year_data.empty:
+    st.error(f"No budget rows are available for {selected_year}.")
+    st.stop()
+
+
 st.sidebar.markdown(
     """
     <div class="sidebar-brand">
@@ -1602,67 +1786,81 @@ st.sidebar.markdown(
     unsafe_allow_html=True,
 )
 
-page = st.sidebar.radio(
-    "Pages",
-    [
-        "Home",
-        "My State",
-        "What Could This Build?",
-        "Compare States",
-        "Rankings",
-        "Where The Money Goes",
-        "About",
-    ],
+st.sidebar.markdown(
+    """
+    <p><a href="?page=Home" style="color:#f8fafc;text-decoration:none;font-weight:700;">Home</a></p>
+    <p><a href="?page=About" style="color:#f8fafc;text-decoration:none;font-weight:700;">About this tool</a></p>
+    """,
+    unsafe_allow_html=True,
 )
 
-st.sidebar.markdown("### Budget year")
-available_years = states["year"].drop_duplicates().sort_values(ascending=False).tolist()
-selected_year = st.sidebar.selectbox(
-    "Budget year",
-    available_years,
-    index=0,
-    key="global_budget_year",
-    label_visibility="collapsed",
-)
-st.session_state["selected_year"] = selected_year
-selected_year_data = states[states["year"] == selected_year].copy()
-
-if selected_year_data.empty:
-    st.error(f"No budget rows are available for {selected_year}.")
-    st.stop()
-
-st.sidebar.markdown("### State")
-global_state_options = selected_year_data["state"].drop_duplicates().sort_values().tolist()
-preferred_state = st.session_state.get("selected_state")
-if preferred_state not in global_state_options:
-    preferred_state = "Lagos" if "Lagos" in global_state_options else global_state_options[0]
-
-st.sidebar.selectbox(
-    "State",
-    global_state_options,
-    index=global_state_options.index(preferred_state),
-    key="selected_state",
-)
+page = st.session_state["page"]
 
 if page == "Home":
     st.markdown(
         """
         <div class="hero">
-            <h1>Understand your state budget in plain English.</h1>
+            <h1>Nigeria Development Simulator</h1>
+            <h3>Explore how Nigerian states plan, compare, and spend public money.</h3>
             <p>
-                Choose a state and year to see how much money the government plans
-                to spend, what that means per resident, and what the money could build.
+                Use this tool to view state budgets, compare states, check rankings, and test simple
+                development scenarios. Select a year and state, then explore what the numbers could
+                mean for people, services, and infrastructure.
             </p>
         </div>
         """,
         unsafe_allow_html=True,
     )
+    st.caption(
+        "The aim is to make public budget information easier to understand, compare, and discuss."
+    )
 
     st.write("")
+    selected_year, selected_year_data = render_exploration_controls(
+        "Choose what to explore",
+        "Select a year and state, then choose one of the cards below to explore budgets, rankings, comparisons, or development scenarios.",
+    )
+
+    st.markdown("### What you can do")
+    top_left, top_right = st.columns(2)
+    with top_left:
+        clickable_infographic_card(
+            "💰",
+            "Explore Budgets",
+            "View state budget figures and per-resident indicators.",
+            "My State",
+        )
+        clickable_infographic_card(
+            "🏆",
+            "View Rankings",
+            "See which states rank higher on selected budget indicators.",
+            "Rankings",
+        )
+        clickable_infographic_card(
+            "🧾",
+            "Understand Spending",
+            "See how budgets are split between capital and recurrent spending.",
+            "Where The Money Goes",
+        )
+    with top_right:
+        clickable_infographic_card(
+            "⚖️",
+            "Compare States",
+            "Compare two or more states side by side.",
+            "Compare States",
+        )
+        clickable_infographic_card(
+            "🧮",
+            "Test Scenarios",
+            "Estimate what a budget amount could fund, such as schools, clinics, roads, or boreholes.",
+            "What Could This Build?",
+        )
+
     selected_state, selected_year, row = get_state_year_selection(
         selected_year_data, selected_year, "home"
     )
 
+    st.markdown("### Selected state snapshot")
     st.markdown(f"### {selected_state}, {selected_year}")
     metric_card(
         "Total Budget",
@@ -1674,30 +1872,17 @@ if page == "Home":
     )
     budget_source_note(selected_year)
 
-    st.markdown("### What you can do")
-    metric_card(
-        "Check My State",
-        "See the big numbers first",
-        "Start with total budget, projects, running government, and budget per resident.",
-    )
-    metric_card(
-        "Compare States",
-        "See states side by side",
-        "Compare budgets, project spending, and budget per resident.",
-    )
-    metric_card(
-        "What Could This Build?",
-        "Roads, schools, health centres, water",
-        "Use simple project-cost assumptions to understand the scale of a budget.",
-    )
-
     data_quality_summary(selected_year_data, selected_year)
     year_data_notes(selected_year)
 
 
 elif page == "My State":
+    render_back_to_home()
+    selected_year, selected_year_data = render_exploration_controls(
+        helper_text="You can change these selections here, or return Home to choose a different starting point."
+    )
     st.title("My State")
-    st.write("Start here: choose your state and see the selected year's budget in plain English.")
+    st.write("See the selected state's budget in plain English.")
 
     selected_state, selected_year, row = get_state_year_selection(
         selected_year_data, selected_year, "explorer"
@@ -1812,6 +1997,10 @@ elif page == "My State":
 
 
 elif page == "What Could This Build?":
+    render_back_to_home()
+    selected_year, selected_year_data = render_exploration_controls(
+        helper_text="You can change these selections here, or return Home to choose a different starting point."
+    )
     st.title("What Could This Build?")
     st.write(
         "Budgets are huge numbers. This page translates them into everyday projects "
@@ -1914,6 +2103,10 @@ elif page == "What Could This Build?":
 
 
 elif page == "Where The Money Goes":
+    render_back_to_home()
+    selected_year, selected_year_data = render_exploration_controls(
+        helper_text="You can change these selections here, or return Home to choose a different starting point."
+    )
     st.title("Where The Money Goes")
     st.write(
         "See how the selected state's budget is split between projects and running government."
@@ -1997,6 +2190,10 @@ elif page == "Where The Money Goes":
 
 
 elif page == "Compare States":
+    render_back_to_home()
+    selected_year, selected_year_data = render_exploration_controls(
+        helper_text="The selected state from Home is included by default. Add or remove states below."
+    )
     st.title("Compare States")
     st.write("Choose the states you want to compare for the selected year.")
     st.caption("Each selected state shows its own budget data status.")
@@ -2132,6 +2329,10 @@ elif page == "Compare States":
 
 
 elif page == "Rankings":
+    render_back_to_home()
+    selected_year, selected_year_data = render_exploration_controls(
+        helper_text="Rankings use the selected budget year. The selected state is highlighted when its data is available."
+    )
     st.title("Rankings")
     st.write(
         "See which states have the highest values for one selected budget measure."
@@ -2460,6 +2661,7 @@ elif page == "Data Sources":
 
 
 elif page == "About":
+    render_back_to_home()
     st.title("About")
     data_status_badge("placeholder")
     st.write(
