@@ -606,11 +606,12 @@ def note_card(text):
     )
 
 
-def render_year_context_notice(selected_year):
+def budget_source_note(selected_year):
     if int(selected_year) == 2025:
-        note_card(
-            "2025 data is currently a baseline comparative dataset. Figures are "
-            "marked needs_review until official state budget documents are extracted."
+        st.caption(
+            "2025 state budget figures are sourced from BudgIT’s comparative analysis "
+            "of approved budgets for Nigeria’s 36 states. FCT 2025 is not included "
+            "in that source."
         )
 
 
@@ -1246,10 +1247,7 @@ budget_insights, fiscal_indicators, budget_outcomes = load_budget_insights_data(
 
 def year_update_note(selected_year):
     if int(selected_year) == 2025:
-        st.info(
-            "2025 data is currently a baseline comparative dataset. Figures are "
-            "marked needs_review until official state budget documents are extracted."
-        )
+        budget_source_note(selected_year)
     if int(selected_year) == 2026:
         st.info(
             "2026 data is being added gradually. Revised/supplementary or original "
@@ -1646,8 +1644,6 @@ st.sidebar.selectbox(
     key="selected_state",
 )
 
-render_year_context_notice(selected_year)
-
 if page == "Home":
     st.markdown(
         """
@@ -1676,6 +1672,7 @@ if page == "Home":
         "Budget per Resident",
         format_naira(row["annual_budget_per_person"]),
     )
+    budget_source_note(selected_year)
 
     st.markdown("### What you can do")
     metric_card(
@@ -1729,6 +1726,7 @@ elif page == "My State":
             per_person_budget_help(row),
         )
         population_note()
+    budget_source_note(selected_year)
 
     if has_budget_breakdown(row):
         metric_card(
@@ -1858,6 +1856,7 @@ elif page == "What Could This Build?":
         )
 
     metric_card("Amount to Translate", format_naira(amount))
+    budget_source_note(selected_year)
 
     st.markdown("### Approximate project examples")
 
@@ -1933,6 +1932,7 @@ elif page == "Where The Money Goes":
     )
 
     st.markdown(f"### {selected_state}, {selected_year}")
+    budget_source_note(selected_year)
 
     if not has_budget_breakdown(row):
         note_card(
@@ -2026,6 +2026,7 @@ elif page == "Compare States":
         ].sort_values("state")
 
         st.markdown("### Budget comparison")
+        budget_source_note(selected_year)
 
         def comparison_chart(title, column, empty_message):
             chart = horizontal_budget_chart(
@@ -2158,6 +2159,7 @@ elif page == "Rankings":
         st.info(f"{selected_ranking} is not available for ranking.")
     else:
         st.markdown(f"### Top states by {selected_ranking.lower()}")
+        budget_source_note(selected_year)
         st.caption(
             "This ranks states using the selected year. A bigger budget does not always "
             "mean better services."
