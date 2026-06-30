@@ -1843,7 +1843,7 @@ def ensure_selected_state_for_year(year):
 ensure_selected_state_for_year(st.session_state["selected_year"])
 
 
-def render_exploration_controls(title="Choose what to explore", helper_text=None):
+def render_exploration_controls(title="Choose what to explore", helper_text=None, show_state_picker=True):
     if title:
         st.markdown(f"### {title}")
     if helper_text:
@@ -1851,25 +1851,34 @@ def render_exploration_controls(title="Choose what to explore", helper_text=None
 
     if st.session_state.get("selected_year_control") not in available_years:
         st.session_state["selected_year_control"] = st.session_state["selected_year"]
-    year_col, state_col = st.columns(2)
-    with year_col:
+
+    if show_state_picker:
+        year_col, state_col = st.columns(2)
+        with year_col:
+            selected_year = st.selectbox(
+                "Select budget year",
+                available_years,
+                key="selected_year_control",
+            )
+        st.session_state["selected_year"] = selected_year
+
+        state_options = ensure_selected_state_for_year(selected_year)
+        if st.session_state.get("selected_state_control") not in state_options:
+            st.session_state["selected_state_control"] = st.session_state["selected_state"]
+        with state_col:
+            selected_state = st.selectbox(
+                "Select state",
+                state_options,
+                key="selected_state_control",
+            )
+        st.session_state["selected_state"] = selected_state
+    else:
         selected_year = st.selectbox(
             "Select budget year",
             available_years,
             key="selected_year_control",
         )
-    st.session_state["selected_year"] = selected_year
-
-    state_options = ensure_selected_state_for_year(selected_year)
-    if st.session_state.get("selected_state_control") not in state_options:
-        st.session_state["selected_state_control"] = st.session_state["selected_state"]
-    with state_col:
-        selected_state = st.selectbox(
-            "Select state",
-            state_options,
-            key="selected_state_control",
-        )
-    st.session_state["selected_state"] = selected_state
+        st.session_state["selected_year"] = selected_year
 
     selected_year = st.session_state["selected_year"]
     selected_year_data = year_data_for(selected_year)
@@ -2235,6 +2244,10 @@ elif page == "Where The Money Goes":
                     "Value": format_ngn_long(row["annual_budget_ngn"]),
                 },
                 {
+                    "Label": "Budget per resident",
+                    "Value": format_ngn_long(row["annual_budget_per_person"]),
+                },
+                {
                     "Label": "Projects and development",
                     "Value": format_ngn_long(row["capital_budget_ngn"]),
                 },
@@ -2391,6 +2404,7 @@ elif page == "Rankings":
     selected_year, selected_year_data = render_exploration_controls(
         "Rankings",
         helper_text="Rankings use the selected budget year. The selected state is highlighted when its data is available.",
+        show_state_picker=False,
     )
     ranking_options = {
         "Total Budget": "annual_budget_ngn",
@@ -2407,7 +2421,7 @@ elif page == "Rankings":
     ranked = selected_year_data.dropna(subset=[ranking_column]).sort_values(
         ranking_column,
         ascending=False,
-    ).head(10)
+    )
     global_selected_state = st.session_state.get("selected_state")
 
     if ranked.empty:
