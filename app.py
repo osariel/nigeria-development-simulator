@@ -2403,11 +2403,11 @@ elif page == "Development Ideas":
         )
     note_card(
         "An Akpakpava Street improvement package could focus on safer walking space, "
-        "covered drainage, cleaner shopfronts, solar street lighting, traffic calming, "
-        "organised loading areas, waste collection points and better small-business "
-        "frontage. The concept shows the kind of visible change public infrastructure "
-        "spending could create when road, drainage, lighting and local-business needs "
-        "are planned together."
+        "covered drainage, organised side parking, cleaner shopfronts, solar street "
+        "lighting, traffic calming, loading areas, waste collection points and better "
+        "front-store architecture. The concept shows the kind of visible change public "
+        "infrastructure spending could create when road, drainage, parking, lighting "
+        "and local-business needs are planned together."
     )
 
     with st.expander("Housing benchmark details"):
