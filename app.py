@@ -8,6 +8,7 @@ import streamlit as st
 
 BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
+ASSETS_DIR = BASE_DIR / "assets"
 
 BUDGET_COLUMNS = [
     "state",
@@ -807,6 +808,14 @@ def population_note():
 
 def project_cost_note():
     st.caption(PROJECT_COST_ESTIMATE_NOTE)
+
+
+def project_cost_method_note():
+    st.caption(
+        "These project costs are screened benchmark allowances, not procurement rates. "
+        "They should be checked against recent Nigerian BOQs, state procurement schedules, "
+        "market prices, terrain surveys and engineering designs before any real project decision."
+    )
 
 
 def budget_101():
@@ -1787,17 +1796,55 @@ def public_project_label(item):
         return "Schools"
     if "health" in item_text or "hospital" in item_text or "clinic" in item_text:
         return "Health centres"
+    if "water system" in item_text:
+        return "Water systems"
     if "borehole" in item_text or "water" in item_text:
         return "Boreholes"
     if "road" in item_text:
         return "Roads"
+    if "home" in item_text or "housing" in item_text:
+        return "Family homes"
+    if "allowance" in item_text or "support" in item_text:
+        return "Welfare support"
+    if "mini-grid" in item_text or "power" in item_text:
+        return "Community power"
+    if "drainage" in item_text or "erosion" in item_text or "flood" in item_text:
+        return "Flood protection"
     return str(item).title()
+
+
+def project_row_by_keyword(costs, keyword):
+    matches = costs[
+        costs["item"].fillna("").str.contains(keyword, case=False, regex=False)
+    ]
+    if matches.empty:
+        return None
+    return matches.iloc[0]
+
+
+def project_unit_cost(costs, keyword, fallback):
+    row = project_row_by_keyword(costs, keyword)
+    if row is None:
+        return fallback
+    return row["cost_ngn"]
+
+
+def mixed_project_cost_item(label, quantity, unit_cost):
+    total = quantity * unit_cost
+    return {
+        "Item": label,
+        "Quantity": quantity,
+        "Unit cost": format_ngn_long(unit_cost),
+        "Total cost": format_ngn_long(total),
+        "total_raw": total,
+    }
 
 
 PUBLIC_PAGES = [
     "Home",
     "My State",
     "What Could This Build?",
+    "Development Ideas",
     "Compare States",
     "Rankings",
     "Where The Money Goes",
@@ -1954,6 +2001,12 @@ if page == "Home":
             "What it could build",
             "Schools, clinics, roads.",
             "What Could This Build?",
+        )
+        clickable_infographic_card(
+            "🏘️",
+            "Development ideas",
+            "Place-based community examples.",
+            "Development Ideas",
         )
         clickable_infographic_card(
             "🏆",
@@ -2144,10 +2197,120 @@ elif page == "What Could This Build?":
                 f"Assumed unit cost: {format_ngn_long(project['unit_cost'])}",
             )
 
+    st.markdown("### Mix projects together")
+    st.write(
+        "Real communities usually need a mix of water, access roads, housing, power, "
+        "welfare support and flood protection. Build a simple package below."
+    )
+    note_card(
+        "A community borehole is one water point. A community water system is larger: "
+        "it may include pumping, storage tanks, treatment/testing, public taps and pipes "
+        "serving several streets or villages."
+    )
+
+    borehole_cost = project_unit_cost(project_costs, "borehole", 4_000_000)
+    road_cost = project_unit_cost(project_costs, "community access road", 100_000_000)
+    housing_cost = project_unit_cost(project_costs, "family home", 25_000_000)
+    mini_grid_cost = project_unit_cost(project_costs, "mini-grid", 180_000_000)
+    drainage_cost = project_unit_cost(project_costs, "drainage", 150_000_000)
+    welfare_cost = project_unit_cost(project_costs, "poor household", 300_000)
+
+    mix_left, mix_right = st.columns(2)
+    with mix_left:
+        boreholes = st.number_input(
+            "Community boreholes",
+            min_value=0,
+            value=5,
+            step=1,
+        )
+        roads = st.number_input(
+            "Km of community road",
+            min_value=0.0,
+            value=1.0,
+            step=0.5,
+        )
+        homes = st.number_input(
+            "Low-cost family homes",
+            min_value=0,
+            value=20,
+            step=1,
+        )
+    with mix_right:
+        mini_grids = st.number_input(
+            "Community mini-grids",
+            min_value=0,
+            value=1,
+            step=1,
+        )
+        drainage = st.number_input(
+            "Km of drainage/flood works",
+            min_value=0.0,
+            value=1.0,
+            step=0.5,
+        )
+        welfare_households = st.number_input(
+            "Very poor households supported for one year",
+            min_value=0,
+            value=500,
+            step=50,
+        )
+
+    mixed_items = [
+        mixed_project_cost_item("Community boreholes", boreholes, borehole_cost),
+        mixed_project_cost_item("Km of community road", roads, road_cost),
+        mixed_project_cost_item("Low-cost family homes", homes, housing_cost),
+        mixed_project_cost_item("Community mini-grids", mini_grids, mini_grid_cost),
+        mixed_project_cost_item("Km of drainage/flood works", drainage, drainage_cost),
+        mixed_project_cost_item(
+            "Very poor households supported for one year",
+            welfare_households,
+            welfare_cost,
+        ),
+    ]
+    mixed_total = sum(item["total_raw"] for item in mixed_items)
+    project_result_card(
+        "Mixed community package",
+        format_ngn_long(mixed_total),
+        "A simple combined package using the quantities selected above.",
+    )
+    if has_value(amount):
+        balance = amount - mixed_total
+        if balance >= 0:
+            st.success(
+                f"This package fits inside the selected amount with about {format_ngn_long(balance)} left."
+            )
+        else:
+            st.warning(
+                f"This package is about {format_ngn_long(abs(balance))} above the selected amount."
+            )
+
+    with st.expander("See mixed package costing"):
+        mixed_display = pd.DataFrame(mixed_items).drop(columns=["total_raw"])
+        st.dataframe(mixed_display, hide_index=True, width="stretch")
+
+    with st.expander("How these unit costs were checked"):
+        project_cost_method_note()
+        st.write(
+            "The drainage figure is a planning allowance, not a published universal "
+            "unit rate. Drainage and erosion works can change sharply with terrain, "
+            "soil, culvert size, outfall, right-of-way, flooding history and whether "
+            "the job is a simple neighbourhood drain or a major gully-control scheme."
+        )
+        st.write(
+            "For practical use, the next step should be a local bill of quantities: "
+            "survey, hydrology, soil test, design drawings, material schedule, labour "
+            "rates, haulage and contingencies."
+        )
+
     with st.expander("Important note about these estimates"):
         st.write(
             "Project translations use benchmark estimates only. They are not official "
-            "promises or procurement costs."
+            "promises, tender prices or procurement costs."
+        )
+        st.write(
+            "Recent naira depreciation and material-price inflation mean older Nigerian "
+            "construction examples can be too low. The assumptions here deliberately use "
+            "more cautious planning allowances and flag items that still need BOQ checks."
         )
         project_cost_note()
         if using_default_project_costs:
@@ -2184,6 +2347,143 @@ elif page == "What Could This Build?":
 
     about_this_data(selected_year_data, selected_year)
 
+
+elif page == "Development Ideas":
+    render_back_to_home()
+    st.title("Development ideas")
+    st.write(
+        "Use these examples as civic imagination prompts. They show how public "
+        "spending could translate into visible improvements in housing, streets, "
+        "drainage, lighting, water and local jobs."
+    )
+    note_card(
+        "These are concept examples, not official plans, approved projects or "
+        "procurement designs."
+    )
+
+    st.markdown("### Edo example: local homes, jobs and services")
+    housing_image = ASSETS_DIR / "edo_local_housing_concept.png"
+    if housing_image.exists():
+        st.image(
+            str(housing_image),
+            caption=(
+                "Design concept: climate-aware low-cost family homes using local materials, "
+                "shade, drainage, water storage and solar lighting. Not a real project photo."
+            ),
+            width="stretch",
+        )
+    note_card(
+        "For communities around Benin City, a practical package could combine compact "
+        "local-material family homes, proper drainage, boreholes or shared water points, "
+        "community solar power, access roads and targeted welfare support."
+    )
+
+    st.markdown("### Jobs and local supply chain")
+    idea_jobs = pd.DataFrame(
+        [
+            {"Area": "Planning", "Local work created": "surveying, design, site supervision and community liaison"},
+            {"Area": "Materials", "Local work created": "block making, aggregate supply, timber, roofing sheets and hardware"},
+            {"Area": "Construction", "Local work created": "masonry, carpentry, plumbing, electrical work, roofing and finishing"},
+            {"Area": "Services", "Local work created": "solar installation, borehole maintenance, drainage maintenance and waste services"},
+            {"Area": "Aftercare", "Local work created": "estate management, repairs, landscaping, cleaning and local security"},
+        ]
+    )
+    st.dataframe(idea_jobs, hide_index=True, width="stretch")
+
+    st.markdown("### Akpakpava Street transformation concept")
+    akpakpava_image = ASSETS_DIR / "akpakpava_street_transformation_concept.png"
+    if akpakpava_image.exists():
+        st.image(
+            str(akpakpava_image),
+            caption=(
+                "Concept visual: before-and-after infrastructure makeover inspired by "
+                "Akpakpava Street. This is not a real project photo or official plan."
+            ),
+            width="stretch",
+        )
+    note_card(
+        "An Akpakpava Street improvement package could focus on safer walking space, "
+        "covered drainage, cleaner shopfronts, solar street lighting, traffic calming, "
+        "organised loading areas, waste collection points and better small-business "
+        "frontage. The concept shows the kind of visible change public infrastructure "
+        "spending could create when road, drainage, lighting and local-business needs "
+        "are planned together."
+    )
+
+    with st.expander("Housing benchmark details"):
+        st.write(
+            "The housing benchmark is ₦25 million for a compact 2-bedroom local-material "
+            "family home for about four people. A cautious planning range is roughly "
+            "₦18 million to ₦30 million, depending on location, specification, transport "
+            "costs, labour, foundation conditions and finishing quality."
+        )
+        st.write(
+            "This range reflects recent pressure from building-material inflation, "
+            "transport costs and imported components. It should still be checked against "
+            "a current local bill of quantities before any real project decision."
+        )
+
+        housing_details = pd.DataFrame(
+            [
+                {"Area": "Likely house type", "Details": "Compact 2-bedroom bungalow or terrace-style family home"},
+                {"Area": "Likely rooms", "Details": "Living area, 2 bedrooms, small kitchen, toilet/bathroom, shaded veranda"},
+                {"Area": "Walling", "Details": "Stabilized earth blocks, compressed earth blocks, or sandcrete blocks where appropriate"},
+                {"Area": "Structure", "Details": "Concrete strip foundation, ground slab, lintels, simple reinforced elements"},
+                {"Area": "Roof", "Details": "Timber or light steel trusses with long-span aluminium/coated roofing sheets"},
+                {"Area": "Openings", "Details": "Simple timber/steel doors and aluminium or louvre windows for ventilation"},
+                {"Area": "Services", "Details": "Basic electrical wiring, basic plumbing, toilet/bathroom fittings and kitchen water point"},
+                {"Area": "Climate response", "Details": "Cross ventilation, shaded veranda, roof overhangs, gutters and rainwater management"},
+            ]
+        )
+        st.dataframe(housing_details, hide_index=True, width="stretch")
+
+        st.write("Excluded from the ₦25 million benchmark unless separately budgeted:")
+        st.write(
+            "Land acquisition, estate roads, major drainage network, borehole or water "
+            "treatment system, solar power system, grid extension, perimeter fencing, "
+            "major landscaping, professional fees, approvals, developer profit, finance "
+            "costs, compensation and long-distance material haulage."
+        )
+
+        source_details = pd.DataFrame(
+            [
+                {
+                    "Source": "Federal Mortgage Bank of Nigeria",
+                    "What it supports": "FMBN describes affordable housing finance and gives an example of a three-bedroom semi-detached flat at ₦10.5 million under a rent-to-own scheme.",
+                },
+                {
+                    "Source": "Family Homes Funds",
+                    "What it supports": "FHFL presents affordable housing as a national programme and reports homes financed and jobs created.",
+                },
+                {
+                    "Source": "Nigerian Price building-cost breakdown",
+                    "What it supports": "Lists a 3-bedroom bungalow estimate of ₦10.5m-₦20m, but the page notes the figures were last updated in 2021, so current planning should allow more.",
+                },
+            ]
+        )
+        st.dataframe(source_details, hide_index=True, width="stretch")
+        st.markdown(
+            """
+            Sources:
+            - [Federal Mortgage Bank of Nigeria](https://fmbn.gov.ng/)
+            - [Family Homes Funds](https://fhfl.com.ng/)
+            - [Nigerian Price: Cost of Building a 3-Bedroom Bungalow](https://nigerianprice.com/cost-of-building-a-3-bedroom-bungalow-in-nigeria/)
+            """
+        )
+
+    with st.expander("Terrain, flooding and erosion checks for Benin City"):
+        st.write(
+            "Benin City project sites should be checked with real elevation, drainage, "
+            "soil and flood-risk data before any works are costed for procurement. Public "
+            "tools such as SRTM/Copernicus digital elevation models, state drainage plans, "
+            "erosion-control records and site surveys can help identify low points, runoff "
+            "paths and erosion-prone slopes."
+        )
+        st.write(
+            "This simulator does not yet run parcel-level terrain analysis. Treat the "
+            "drainage and erosion figures here as early planning allowances until engineers "
+            "complete hydrology, geotechnical and community-impact checks."
+        )
 
 elif page == "Where The Money Goes":
     render_back_to_home()
