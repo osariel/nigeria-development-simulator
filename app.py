@@ -1963,12 +1963,13 @@ if page == "Home":
                 language, so you can see what your government plans to spend and what that
                 could mean for you.
             </p>
+            <p>
+                The aim is to make public budget information easier to understand,
+                compare, and discuss.
+            </p>
         </div>
         """,
         unsafe_allow_html=True,
-    )
-    st.caption(
-        "The aim is to make public budget information easier to understand, compare, and discuss."
     )
 
     st.markdown("### How it works")
@@ -2408,6 +2409,67 @@ elif page == "Development Ideas":
         "front-store architecture. The concept shows the kind of visible change public "
         "infrastructure spending could create when road, drainage, parking, lighting "
         "and local-business needs are planned together."
+    )
+
+    st.markdown("### Lokoja examples: streets and clinics")
+    st.write(
+        "These Kogi examples show how smaller, practical upgrades can improve everyday "
+        "places without changing their character."
+    )
+
+    st.markdown("#### GRA Road, Lokoja")
+    gra_today = ASSETS_DIR / "lokoja_gra_road_today.jpeg"
+    gra_concept = ASSETS_DIR / "lokoja_gra_road_concept.png"
+    gra_left, gra_right = st.columns(2)
+    with gra_left:
+        if gra_today.exists():
+            st.image(
+                str(gra_today),
+                caption="Today: GRA Road, Lokoja.",
+                width="stretch",
+            )
+    with gra_right:
+        if gra_concept.exists():
+            st.image(
+                str(gra_concept),
+                caption=(
+                    "Concept: covered drainage, safer walking edge, solar lighting, "
+                    "kerbs, landscaping and calmer road frontage."
+                ),
+                width="stretch",
+            )
+    note_card(
+        "For a road like GRA Road, the improvement idea is not a flyover or a major "
+        "rebuild. It is a practical neighbourhood upgrade: drain the water properly, "
+        "protect road edges, make walking safer, add lighting, organise parking where "
+        "space allows and keep the residential character."
+    )
+
+    st.markdown("#### Farce Clinic, Lokoja")
+    clinic_today = ASSETS_DIR / "lokoja_farce_clinic_today.jpeg"
+    clinic_concept = ASSETS_DIR / "lokoja_farce_clinic_concept.png"
+    clinic_left, clinic_right = st.columns(2)
+    with clinic_left:
+        if clinic_today.exists():
+            st.image(
+                str(clinic_today),
+                caption="Today: Farce Clinic, Lokoja.",
+                width="stretch",
+            )
+    with clinic_right:
+        if clinic_concept.exists():
+            st.image(
+                str(clinic_concept),
+                caption=(
+                    "Concept: repaired buildings, accessible paths, shaded waiting "
+                    "space, drainage, water point, waste area and solar lighting."
+                ),
+                width="stretch",
+            )
+    note_card(
+        "For a clinic compound, visible development can mean simple things that matter: "
+        "a dry and accessible walkway, a clean waiting area, reliable water, safe waste "
+        "handling, lighting, drainage and a cared-for environment for patients and staff."
     )
 
     with st.expander("Housing benchmark details"):
