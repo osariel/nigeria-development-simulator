@@ -5,6 +5,8 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+from social_preview import inject_open_graph_tags
+
 
 BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
@@ -167,6 +169,8 @@ BUDGET_REVISION_POLICY_NOTE = (
 SOURCE_PENDING_STATUS = "source_pending"
 LEGACY_PENDING_STATUS = "place" + "holder"
 
+
+inject_open_graph_tags()
 
 st.set_page_config(
     page_title="Nigeria Development Simulator",
