@@ -5,7 +5,7 @@ from models.chat import answer
 
 def render_chat(states, costs):
     st.markdown('''<style>
-    .stMainBlockContainer {max-width: 960px; padding-top: 2rem;}
+    .stMainBlockContainer {max-width: 960px; padding-top: 4.5rem;}
     [data-testid="stChatMessage"] {border: 1px solid #dce6e2; border-radius: 16px; margin-bottom: 1rem;}
     h1 {font-size: 2.3rem !important; letter-spacing: -.06rem;}
     </style>''', unsafe_allow_html=True)

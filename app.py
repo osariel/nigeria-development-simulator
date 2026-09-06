@@ -195,14 +195,14 @@ st.markdown(
     .block-container {
         max-width: 760px;
         width: 100%;
-        padding-top: clamp(0.75rem, 3vw, 1.4rem);
+        padding-top: 4.5rem;
         padding-bottom: clamp(1.4rem, 5vw, 2.5rem);
         padding-left: clamp(1rem, 4vw, 2.5rem);
         padding-right: clamp(1rem, 4vw, 2.5rem);
     }
 
     header[data-testid="stHeader"] {
-        display: none;
+        background: transparent;
     }
 
     div[data-testid="stDecoration"] {
