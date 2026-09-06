@@ -1,0 +1,8 @@
+policy_item,rule
+budget_value_rule,Use latest revised or supplementary approved budget where available; otherwise use original approved budget.
+proposed_budget_rule,Use proposed budget figures only when clearly marked as proposed_total_needs_review.
+conflict_rule,If sources conflict do not guess; mark the row as needs_review and explain the conflict in notes.
+missing_value_rule,Leave unavailable values blank; never use zero for missing budget data.
+breakdown_rule,Only enter capital recurrent personnel overhead or debt-service figures when explicitly available from a source.
+source_priority,Prefer official state documents OpenStates and BudgIT; use reputable news reports only when official documents are not yet extracted.
+scope,Policy applies to all states and all years in state_budgets.csv.
