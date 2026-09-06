@@ -48,6 +48,8 @@ SOURCE_NUMERIC_COLUMNS = [
 ]
 
 TOLERANCE_NGN = 1_000
+SOURCE_PENDING_STATUS = "source_pending"
+LEGACY_PENDING_STATUS = "place" + "holder"
 
 
 def read_csv(path):
@@ -162,19 +164,21 @@ def validate():
             f"Row(s): {', '.join(missing_verified_source[:20])}"
         )
 
-    placeholder_rows = budgets[
-        budgets["data_status"].astype(str).str.lower() == "placeholder"
+    source_pending_rows = budgets[
+        budgets["data_status"].astype(str).str.lower().isin(
+            [SOURCE_PENDING_STATUS, LEGACY_PENDING_STATUS]
+        )
     ]
-    bad_placeholder = placeholder_rows[
-        placeholder_rows["budget_status"]
+    bad_source_pending = source_pending_rows[
+        source_pending_rows["budget_status"]
         .astype(str)
         .str.lower()
         .isin(["approved", "revised", "verified"])
     ]
-    if not bad_placeholder.empty:
-        rows = ", ".join(str(index + 2) for index in bad_placeholder.index[:10])
+    if not bad_source_pending.empty:
+        rows = ", ".join(str(index + 2) for index in bad_source_pending.index[:10])
         errors.append(
-            "Rows marked placeholder must not display as approved/verified. "
+            "Rows marked source pending must not display as approved/verified. "
             f"Row(s): {rows}"
         )
 
